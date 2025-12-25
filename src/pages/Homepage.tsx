@@ -108,7 +108,7 @@ export default function HomePage() {
       </section>
 
       {/* Quote Calculator */}
-      <section className="py-12 lg:py-16 bg-muted/30">
+      <section className="py-5 lg:py-5 bg-muted/30">
         <div className="container mx-auto px-4 lg:px-8">
           <QuoteCalculator />
         </div>

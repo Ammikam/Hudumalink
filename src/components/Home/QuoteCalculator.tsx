@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calculator, ChevronDown } from 'lucide-react';
-import { Button } from '../ui/button';
-import { roomTypes, roomSizes, designStyles, formatCurrency } from '../../data/MockData';
-import { cn } from '../../lib/utils';
+import { Button } from '@/components/ui/button';
+import { roomTypes, roomSizes, designStyles, formatCurrency } from '@/data/MockData'; // Fixed path
+import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
 export function QuoteCalculator() {
   const [roomType, setRoomType] = useState(roomTypes[0]);
@@ -23,10 +24,7 @@ export function QuoteCalculator() {
   }, [roomType, roomSize, style]);
 
   return (
-    <motion.div
-      layout
-      className="card-elevated p-6 lg:p-8"
-    >
+    <motion.div layout className="card-elevated p-4 lg:p-6">
       <div
         className="flex items-center justify-between cursor-pointer lg:cursor-default"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -54,20 +52,20 @@ export function QuoteCalculator() {
 
       <motion.div
         initial={false}
-        animate={{ height: isExpanded || window.innerWidth >= 1024 ? 'auto' : 0 }}
+        animate={{ height: isExpanded || typeof window !== 'undefined' && window.innerWidth >= 1024 ? 'auto' : 0 }}
         className="overflow-hidden"
       >
         <div className="pt-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Room Type */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Room Type
-              </label>
+              <label className="text-sm font-medium text-foreground">Room Type</label>
               <div className="relative">
                 <select
                   value={roomType.value}
-                  onChange={(e) => setRoomType(roomTypes.find(r => r.value === e.target.value)!)}
+                  onChange={(e) =>
+                    setRoomType(roomTypes.find((r) => r.value === e.target.value)!)
+                  }
                   className="w-full h-12 px-4 rounded-xl bg-muted border-0 text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-primary"
                 >
                   {roomTypes.map((room) => (
@@ -82,13 +80,13 @@ export function QuoteCalculator() {
 
             {/* Room Size */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Room Size
-              </label>
+              <label className="text-sm font-medium text-foreground">Room Size</label>
               <div className="relative">
                 <select
                   value={roomSize.value}
-                  onChange={(e) => setRoomSize(roomSizes.find(r => r.value === e.target.value)!)}
+                  onChange={(e) =>
+                    setRoomSize(roomSizes.find((r) => r.value === e.target.value)!)
+                  }
                   className="w-full h-12 px-4 rounded-xl bg-muted border-0 text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-primary"
                 >
                   {roomSizes.map((size) => (
@@ -101,15 +99,15 @@ export function QuoteCalculator() {
               </div>
             </div>
 
-            {/* Style */}
+            {/* Design Style */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Design Style
-              </label>
+              <label className="text-sm font-medium text-foreground">Design Style</label>
               <div className="relative">
                 <select
                   value={style.value}
-                  onChange={(e) => setStyle(designStyles.find(s => s.value === e.target.value)!)}
+                  onChange={(e) =>
+                    setStyle(designStyles.find((s) => s.value === e.target.value)!)
+                  }
                   className="w-full h-12 px-4 rounded-xl bg-muted border-0 text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-primary"
                 >
                   {designStyles.map((s) => (
@@ -139,9 +137,20 @@ export function QuoteCalculator() {
             </p>
           </motion.div>
 
-          <Button variant="terracotta" size="lg" className="w-full">
-            Get Detailed Quote from Designers
-          </Button>
+          <Link 
+  to="/post-project" 
+  state={{ 
+    roomType: roomType.label,
+    budgetMin: priceRange.min,
+    budgetMax: priceRange.max,
+    style: style.label 
+  }}
+  className="block w-full"
+>
+  <Button variant="secondary" size="lg" className="w-full">
+    Get Detailed Quote from Designers
+  </Button>
+</Link>
         </div>
       </motion.div>
     </motion.div>
