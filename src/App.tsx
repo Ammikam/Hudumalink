@@ -10,7 +10,7 @@ import DesignerProfilePage from "./pages/DesignerProfilePage";
 import PostProjectPage from "./pages/PostProjectPage";
 import ClientDashboard from "./pages/ClientDashboard";
 import NotFound from "./pages/NotFound";
-
+import SuccessPage from "./pages/SuccessPage";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -27,6 +27,7 @@ const App = () => (
           <Route path="/post-project" element={<PostProjectPage />} />
           <Route path="/dashboard/client" element={<ClientDashboard />} />
           <Route path="/dashboard/designer" element={<ClientDashboard />} />
+          <Route path="/success" element={<SuccessPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

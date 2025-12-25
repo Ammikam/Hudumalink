@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Upload, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { Layout } from '@/components/Layout/Layout';
@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/data/MockData';
+import { X } from 'lucide-react';
 
 const steps = ['Project Details', 'Upload Photos', 'Budget & Style', 'Contact'];
 
@@ -34,6 +35,8 @@ export default function PostProjectPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
   const toggleStyle = (style: string) => {
     setSelectedStyles(prev =>
@@ -119,30 +122,70 @@ export default function PostProjectPage() {
             )}
 
             {/* Step 1: Upload Photos */}
-            {step === 1 && (
-              <div className="space-y-8 text-center">
-                <div>
-                  <h2 className="font-display text-3xl lg:text-4xl font-bold mb-4">
-                    Upload photos of your space
-                  </h2>
-                  <p className="text-muted-foreground">
-                    Help designers understand your current space (optional but highly recommended)
-                  </p>
-                </div>
+          {step === 1 && (
+  <div className="space-y-8">
+    <div className="text-center">
+      <h2 className="font-display text-3xl lg:text-4xl font-bold mb-4">
+        Upload photos of your space
+      </h2>
+      <p className="text-muted-foreground">
+        Help designers understand your current space (optional but highly recommended)
+      </p>
+    </div>
 
-                <div className="border-4 border-dashed border-border/50 rounded-3xl p-16 hover:border-primary/50 transition-colors cursor-pointer">
-                  <Upload className="w-16 h-16 mx-auto text-muted-foreground mb-6" />
-                  <p className="text-xl font-medium mb-2">Drag & drop photos here</p>
-                  <p className="text-muted-foreground mb-6">or click to browse from your device</p>
-                  <Button size="lg" variant="outline">
-                    Choose Photos
-                  </Button>
-                  <p className="text-sm text-muted-foreground mt-4">
-                    Up to 10 photos • JPG, PNG • Max 10MB each
-                  </p>
-                </div>
-              </div>
-            )}
+    <div className="relative">
+      <input
+        type="file"
+        multiple
+        accept="image/*"
+        id="file-upload"
+        className="absolute inset-0 opacity-0 cursor-pointer z-10"
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          setUploadedFiles(prev => [...prev, ...files]);
+
+          files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              setPreviewUrls(prev => [...prev, ev.target?.result as string]);
+            };
+            reader.readAsDataURL(file);
+          });
+        }}
+      />
+
+      <div className="border-4 border-dashed border-border/50 rounded-3xl p-16 hover:border-primary/50 transition-colors text-center">
+        <Upload className="w-16 h-16 mx-auto text-muted-foreground mb-6" />
+        <p className="text-xl font-medium mb-2">Click anywhere or drag & drop</p>
+        <p className="text-muted-foreground mb-6">PNG, JPG up to 10MB</p>
+        <Button size="lg" variant="outline" type="button">
+          Choose Photos
+        </Button>
+      </div>
+    </div>
+
+    {/* Preview Grid */}
+    {previewUrls.length > 0 && (
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8">
+        {previewUrls.map((url, i) => (
+          <div key={i} className="relative group rounded-xl overflow-hidden">
+            <img src={url} alt={`Preview ${i + 1}`} className="w-full h-64 object-cover" />
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewUrls(prev => prev.filter((_, index) => index !== i));
+                setUploadedFiles(prev => prev.filter((_, index) => index !== i));
+              }}
+              className="absolute top-2 right-2 bg-destructive text-destructive-foreground rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
             {/* Step 2: Budget & Style – FIXED SLIDER */}
             {step === 2 && (
@@ -254,10 +297,12 @@ export default function PostProjectPage() {
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               ) : (
-                <Button size="lg" variant="terracotta">
-                  <Check className="w-5 h-5 mr-2" />
-                  Submit Project
-                </Button>
+               <Button size="lg" variant="terracotta" asChild>
+  <Link to="/success">
+    <Check className="w-5 h-5 mr-2" />
+    Submit Project
+  </Link>
+</Button>
               )}
             </div>
           </motion.div>
