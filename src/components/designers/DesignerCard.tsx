@@ -44,6 +44,22 @@ export function DesignerCard({ designer, index = 0 }: DesignerCardProps) {
             {/* Dark overlay on hover */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
 
+            {/* Badges - Now on top of everything */}
+            <div className="absolute top-4 left-4 right-4 flex flex-wrap gap-2 z-20 pointer-events-none">
+              {designer.superVerified && (
+                <Badge className="bg-gradient-to-r from-gold to-accent text-white border-0 shadow-glow animate-pulse-slow">
+                  <Sparkles className="w-3.5 h-3.5 mr-1" />
+                  Super Verified
+                </Badge>
+              )}
+              {designer.verified && !designer.superVerified && (
+                <Badge variant="secondary">
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                  Verified
+                </Badge>
+              )}
+            </div>
+
             {/* Hover CTA overlay */}
             <div className="absolute inset-0 flex items-end p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10">
               <div className="text-white">
@@ -56,9 +72,9 @@ export function DesignerCard({ designer, index = 0 }: DesignerCardProps) {
 
           {/* Card Body */}
           <div className="p-6 lg:p-8 space-y-5">
-            {/* Avatar + Name + Location + Badges */}
-            <div className="flex items-start gap-4">
-              <div className="relative flex-shrink-0">
+            {/* Avatar + Name + Location */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
                 <img
                   src={designer.avatar}
                   alt={designer.name}
@@ -69,28 +85,11 @@ export function DesignerCard({ designer, index = 0 }: DesignerCardProps) {
                 )}
               </div>
 
-              <div className="flex-1">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h3 className="font-display text-xl lg:text-2xl font-bold text-foreground">
-                    {designer.name}
-                  </h3>
-
-                  {/* Badges moved here */}
-                  {designer.superVerified && (
-                    <Badge className="bg-gradient-to-r from-gold to-accent text-white border-0 shadow-glow animate-pulse-slow">
-                      <Sparkles className="w-3.5 h-3.5 mr-1" />
-                      Super Verified
-                    </Badge>
-                  )}
-                  {designer.verified && !designer.superVerified && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Verified
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 text-muted-foreground mt-2">
+              <div>
+                <h3 className="font-display text-xl lg:text-2xl font-bold text-foreground">
+                  {designer.name}
+                </h3>
+                <div className="flex items-center gap-2 text-muted-foreground mt-1">
                   <MapPin className="w-4 h-4" />
                   <span>{designer.location}</span>
                 </div>
@@ -132,7 +131,7 @@ export function DesignerCard({ designer, index = 0 }: DesignerCardProps) {
               ))}
             </div>
 
-            {/* Price + CTA */}
+            {/* Price + Quick Action */}
             <div className="flex items-end justify-between pt-4 border-t border-border/50">
               <div>
                 <p className="text-sm text-muted-foreground">Starting from</p>

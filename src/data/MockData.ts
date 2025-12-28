@@ -15,6 +15,7 @@ export interface Designer {
   startingPrice: number;
   styles: string[];
   about: string;
+  calendlylink?: string;
   videoUrl?: string;
   portfolio: PortfolioProject[];
   reviews: Review[];
@@ -118,6 +119,7 @@ export const designers: Designer[] = [
     avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200',
     coverImage: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1200',
     location: 'Nairobi, Westlands',
+    calendlylink:'https://calendly.com/devammikam/30min',
     verified: true,
     superVerified: true,
     rating: 4.9,
