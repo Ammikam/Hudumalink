@@ -1,73 +1,63 @@
-# React + TypeScript + Vite
+# Hudumalink – Kenya's Premier Interior Design Marketplace 🇰🇪
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Hudumalink is a full-stack web platform connecting clients with verified interior designers across Kenya. Clients post projects, get personalized proposals, book calls, and pay securely via milestone escrow. Designers showcase portfolios, receive invites, and manage bookings.
 
-Currently, two official plugins are available:
+Built as a final-year university project — now evolving into a real startup idea.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Features
 
-## React Compiler
+- **Client Flow**
+  - Interactive quote calculator with instant price range
+  - Multi-step project posting with photo uploads and previews
+  - Real-time before/after portfolio sliders
+  - Direct messaging and 15-min discovery call booking via Calendly
+  - Milestone-based project tracking (coming soon)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Designer Flow**
+  - Premium profile with portfolio grid, reviews, stats
+  - Super Verified badge system
+  - Response time and rating display
+  - Direct client invites and messaging
 
-## Expanding the ESLint configuration
+- **Tech Highlights**
+  - Beautiful, responsive UI with dark mode support
+  - Real Calendly integration for booking calls
+  - Client-side photo previews (drag & drop)
+  - Mock data with 6 Kenyan designers and real-looking projects
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 🛠️ Tech Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**Frontend**
+- React 18 + Vite
+- TypeScript
+- Tailwind CSS
+- shadcn/ui components
+- Framer Motion (animations)
+- Lucide React icons
+- React Router DOM
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+**Backend (In Progress)**
+- Node.js + Express
+- MongoDB Atlas
+- Cloudinary (image uploads)
+- Planned: Clerk auth, M-PESA escrow
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+**Deployment**
+- Frontend: Vercel / Netlify
+- Backend: Render / Railway
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🚀 Quick Start
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+```bash
+# Clone the repo
+git clone https://github.com/Ammikam/Hudumalink.git
+cd hudumalink
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Open http://localhost:5173
