@@ -113,13 +113,18 @@ export default function DesignerProfilePage() {
 </Button>
                   {designer.calendlylink ? (
   <Button
-    size="xl"
-    variant="secondary"
-    onClick={() => Calendly.initPopupWidget({ url: designer.calendlylink })}
-  >
-    <Calendar className="w-6 h-6 mr-3" />
-    Book 15-min Call
-  </Button>
+  size="xl"
+  variant="secondary"
+  onClick={() => {
+    if (designer.calendlylink) {
+      Calendly.initPopupWidget({ url: designer.calendlylink });
+    }
+  }}
+  disabled={!designer.calendlylink}
+>
+  <Calendar className="w-6 h-6 mr-3" />
+  {designer.calendlylink ? 'Book 15-min Call' : 'Calendar Not Available'}
+</Button>
 ) : (
   <Button size="xl" variant="secondary" disabled>
     <Calendar className="w-6 h-6 mr-3" />
