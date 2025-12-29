@@ -10,12 +10,14 @@ import { useStore } from '@/store/use-store';
 import { formatCurrency } from '@/data/MockData';
 import { Layout } from '@/components/Layout/Layout';
 import { SendMessageModal } from '@/components/designers/SendMessageModal';
+import { InviteToProjectModal } from '@/components/designers/InviteToProjectModal';
 
 export default function DesignerProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { designers } = useStore();
   const [messageModalOpen, setMessageModalOpen] = useState(false);
   const designer = designers.find((d) => d.id === id);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   if (!designer) {
     return (
@@ -131,9 +133,14 @@ export default function DesignerProfilePage() {
     Calendar Not Available
   </Button>
 )}
-                  <Button size="xl" variant="outline" className="border-white/50 text-white hover:bg-white/20">
-                    Invite to My Project
-                  </Button>
+                  <Button size="xl" variant="outline" className="border-white/50 text-white hover:bg-white/20" onClick={() => setInviteModalOpen(true)}>
+  Invite to My Project
+</Button>
+<InviteToProjectModal
+  designer={designer}
+  open={inviteModalOpen}
+  onOpenChange={setInviteModalOpen}
+/>
                 </div>
               </div>
             </div>

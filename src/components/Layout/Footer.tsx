@@ -139,7 +139,7 @@ export function Footer() {
               ))}
             </div>
             <p className="text-sm text-primary-foreground/60">
-              © {new Date().getFullYear()} Hudumalink. All rights reserved. Made with ❤️ in Kenya
+              © {new Date().getFullYear()} Hudumalink. All rights reserved.
             </p>
           </div>
         </div>
