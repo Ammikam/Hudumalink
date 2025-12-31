@@ -2,7 +2,9 @@ import { Toaster } from "../src/components/ui/toaster";
 import { Toaster as Sonner } from "../src/components/ui/sonner";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { ClerkProvider } from '@clerk/clerk-react';
+
 import HomePage from "../src/pages/Homepage";
 import InspirationPage from "./pages/InspirationPage";
 import DesignersPage from "../src/pages/DesignerPage";
@@ -11,14 +13,21 @@ import PostProjectPage from "./pages/PostProjectPage";
 import ClientDashboard from "./pages/ClientDashboard";
 import NotFound from "./pages/NotFound";
 import SuccessPage from "./pages/SuccessPage";
-const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+const queryClient = new QueryClient();
+const publishableKey = "pk_test_aW5maW5pdGUtZ2liYm9uLTcwLmNsZXJrLmFjY291bnRzLmRldiQ";
+
+function Root() {
+  const navigate = useNavigate();
+
+  return (
+    <ClerkProvider
+      publishableKey={publishableKey}
+      navigate={(to) => navigate(to)}
+    >
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/inspiration" element={<InspirationPage />} />
@@ -30,8 +39,16 @@ const App = () => (
           <Route path="/success" element={<SuccessPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+      </TooltipProvider>
+    </ClerkProvider>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
+      <Root />
+    </BrowserRouter>
   </QueryClientProvider>
 );
 

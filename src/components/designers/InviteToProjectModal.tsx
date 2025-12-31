@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { formatCurrency, type Designer } from '@/data/MockData';
+import { toast } from '@/components/ui/use-toast';
 
 interface InviteModalProps {
   designer: Designer;
@@ -19,10 +20,23 @@ export function InviteToProjectModal({ designer, open, onOpenChange }: InviteMod
   const [budget, setBudget] = useState<number[]>([designer.startingPrice]);
 
   const handleSubmit = () => {
-    // In real app: save project + send invite
-    alert(`Invite sent to ${designer.name}!\n\nProject: ${title}\nBudget: ${formatCurrency(budget[0])}\n\nThey'll be notified and can respond soon.`);
-    onOpenChange(false);
-  };
+  toast({
+    title: "Invite Sent! 🎉",
+    description: (
+      <div className="space-y-2">
+        <p>{designer.name.split(' ')[0]} has been invited to your project.</p>
+        <div className="text-sm">
+          <p className="font-medium">{title}</p>
+          <p>Budget: {formatCurrency(budget[0])}</p>
+        </div>
+        <p className="text-sm text-muted-foreground mt-2">
+          They'll review it and respond soon.
+        </p>
+      </div>
+    ),
+  });
+  onOpenChange(false);
+};
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

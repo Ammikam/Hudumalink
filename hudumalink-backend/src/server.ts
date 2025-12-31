@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import projectRoutes from './routes/Projects';
 
 dotenv.config();
 
@@ -15,6 +16,8 @@ app.use(express.json({ limit: '50mb' })); // for large image uploads
 app.get('/', (req, res) => {
   res.send('Hudumalink Backend Live 🇰🇪');
 });
+
+app.use('/api/projects', projectRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI!)

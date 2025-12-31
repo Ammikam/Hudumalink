@@ -5,6 +5,7 @@ import { Menu, X, Sun, Moon, Sparkles } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useStore } from '../../store/use-store';
 import { cn } from '../../lib/utils';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -65,6 +66,7 @@ export function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
+            {/* Dark Mode Toggle */}
             <Button
               variant="ghost"
               size="icon"
@@ -96,17 +98,40 @@ export function Navbar() {
               </AnimatePresence>
             </Button>
 
-            <Link to="/dashboard/client" className="hidden lg:block">
-              <Button variant="outline" size="sm">
-                Dashboard
-              </Button>
-            </Link>
+            {/* Auth Buttons */}
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button variant="outline" size="sm" className="hidden lg:flex">
+                  Sign In
+                </Button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <div className="hidden lg:flex items-center gap-3">
+                <Link to="/dashboard/client">
+                  <Button variant="outline" size="sm">
+                    Dashboard
+                  </Button>
+                </Link>
+                <UserButton 
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-10 h-10"
+                    }
+                  }}
+                />
+              </div>
+            </SignedIn>
 
-            <Link to="/post-project" className="hidden lg:block">
-              <Button variant="terracotta" size="sm">
-                Post Project
-              </Button>
-            </Link>
+            {/* Post Project Button (Desktop) */}
+            <SignedIn>
+              <Link to="/post-project" className="hidden lg:block">
+                <Button variant="terracotta" size="sm">
+                  Post Project
+                </Button>
+              </Link>
+            </SignedIn>
 
             {/* Mobile Menu Button */}
             <Button
@@ -152,23 +177,46 @@ export function Navbar() {
                     </Link>
                   </motion.div>
                 ))}
+
+                {/* Mobile Auth */}
                 <motion.div
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.4 }}
-                  className="pt-3 flex items-center justify-between"
+                  className="pt-4 space-y-3"
                 >
-                  <Link to="/dashboard/client" onClick={() => setIsOpen(false)}>
-                    <Button variant="outline" size="sm">
-                      Dashboard
-                    </Button>
-                  </Link>
+                  <SignedOut>
+                    <SignInButton mode="modal">
+                      <Button className="w-full" variant="outline">
+                        Sign In
+                      </Button>
+                    </SignInButton>
+                  </SignedOut>
+                  <SignedIn>
+                    <Link to="/dashboard/client" onClick={() => setIsOpen(false)}>
+                      <Button className="w-full" variant="outline">
+                        Dashboard
+                      </Button>
+                    </Link>
+                    <div className="flex justify-center">
+                      <UserButton />
+                    </div>
+                  </SignedIn>
+                  <SignedIn>
+                    <Link to="/post-project" onClick={() => setIsOpen(false)}>
+                      <Button className="w-full" variant="terracotta">
+                        Post Project
+                      </Button>
+                    </Link>
+                  </SignedIn>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={toggleDarkMode}
+                    className="w-full justify-start"
                   >
-                    {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    {isDarkMode ? <Sun className="w-5 h-5 mr-2" /> : <Moon className="w-5 h-5 mr-2" />}
+                    {isDarkMode ? 'Light Mode' : 'Dark Mode'}
                   </Button>
                 </motion.div>
               </div>

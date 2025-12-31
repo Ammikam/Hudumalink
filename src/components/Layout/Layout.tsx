@@ -3,6 +3,7 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { MobileNav } from './MobileNav';
 import { WhatsAppButton } from './WhatsAppButton';
+import { Toaster } from '@/components/ui/toaster';
 
 interface LayoutProps {
   children: ReactNode;
@@ -20,6 +21,7 @@ export function Layout({ children, hideFooter = false, hideMobileNav = false }: 
       {!hideFooter && <Footer />}
       {!hideMobileNav && <MobileNav />}
       <WhatsAppButton />
+      <Toaster/>
     </div>
   );
 }
