@@ -9,7 +9,10 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', // your frontend
+  credentials: true,
+}));
 app.use(express.json({ limit: '50mb' })); // for large image uploads
 
 // Test route

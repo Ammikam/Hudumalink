@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { formatCurrency, type Designer } from '@/data/MockData';
 import { toast } from '@/components/ui/use-toast';
+import { useAuth } from '@clerk/clerk-react';
 
 interface InviteModalProps {
   designer: Designer;
@@ -18,24 +19,62 @@ export function InviteToProjectModal({ designer, open, onOpenChange }: InviteMod
   const [title, setTitle] = useState(`Project Invite for ${designer.name}`);
   const [description, setDescription] = useState(`Hi ${designer.name.split(' ')[0]}, I'd love to invite you to work on my project. Here's what I'm looking for:`);
   const [budget, setBudget] = useState<number[]>([designer.startingPrice]);
+  const { userId, isLoaded } = useAuth();
 
-  const handleSubmit = () => {
-  toast({
-    title: "Invite Sent! 🎉",
-    description: (
-      <div className="space-y-2">
-        <p>{designer.name.split(' ')[0]} has been invited to your project.</p>
-        <div className="text-sm">
-          <p className="font-medium">{title}</p>
-          <p>Budget: {formatCurrency(budget[0])}</p>
-        </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          They'll review it and respond soon.
-        </p>
-      </div>
-    ),
-  });
-  onOpenChange(false);
+  const handleSubmit = async () => {
+  if (!isLoaded || !userId) {
+    toast({
+      variant: "destructive",
+      title: "Please sign in",
+      description: "You need to be logged in to create a project.",
+    });
+    return;
+  }
+
+  console.log("Sending invite...", { title, budget: budget[0], userId, designerId: designer.id });
+
+  try {
+    const response = await fetch('http://localhost:5000/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        description,
+        budget: budget[0],
+        client: {
+          clerkId: userId,
+        },
+        invitedDesigner: designer.id,
+      }),
+    });
+
+    console.log("Response status:", response.status);
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log("Success:", data);
+      toast({
+        title: "Invite Sent Successfully! 🎉",
+        description: `${designer.name.split(' ')[0]} has been invited to your project "${title}"`,
+      });
+      onOpenChange(false);
+    } else {
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
+      toast({
+        variant: "destructive",
+        title: "Failed to send invite",
+        description: errorText || "Server error",
+      });
+    }
+  } catch (error) {
+    console.error("Fetch error:", error);
+    toast({
+      variant: "destructive",
+      title: "Network Error",
+      description: "Check if backend is running on port 5000",
+    });
+  }
 };
 
   return (

@@ -15,13 +15,16 @@ const projectSchema = new mongoose.Schema({
   },
   photos: [String], // array of image URLs (Cloudinary later)
   client: {
-    name: String,
-    email: String,
-    phone: String,
+  clerkId: {
+    type: String,
+    required: true,
   },
+  name: String,
+  email: String,
+},
   invitedDesigner: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Designer',
+    type: mongoose.Schema.Types.String,
+    // ref: 'Designer',
   },
   status: {
     type: String,
