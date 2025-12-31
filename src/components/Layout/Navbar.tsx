@@ -39,8 +39,8 @@ export function Navbar() {
             </motion.div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-8">
+          {/* Desktop Navigation - Center */}
+          <div className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -64,8 +64,8 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Right Side */}
-          <div className="flex items-center gap-3">
+          {/* Right Side - Actions + Profile (furthest right) */}
+          <div className="flex items-center gap-4">
             {/* Dark Mode Toggle */}
             <Button
               variant="ghost"
@@ -98,7 +98,7 @@ export function Navbar() {
               </AnimatePresence>
             </Button>
 
-            {/* Auth Buttons */}
+            {/* Signed Out - Sign In Button */}
             <SignedOut>
               <SignInButton mode="modal">
                 <Button variant="outline" size="sm" className="hidden lg:flex">
@@ -106,6 +106,8 @@ export function Navbar() {
                 </Button>
               </SignInButton>
             </SignedOut>
+
+            {/* Signed In - Dashboard + Post Project */}
             <SignedIn>
               <div className="hidden lg:flex items-center gap-3">
                 <Link to="/dashboard/client">
@@ -113,24 +115,26 @@ export function Navbar() {
                     Dashboard
                   </Button>
                 </Link>
-                <UserButton 
+                <Link to="/post-project">
+                  <Button variant="terracotta" size="sm">
+                    Post Project
+                  </Button>
+                </Link>
+              </div>
+            </SignedIn>
+
+            {/* User Profile — Furthest Right */}
+            <SignedIn>
+              <div className="hidden lg:block">
+                <UserButton
                   afterSignOutUrl="/"
                   appearance={{
                     elements: {
-                      avatarBox: "w-10 h-10"
+                      avatarBox: "w-10 h-10 ring-4 ring-cream ring-offset-2 ring-offset-background shadow-medium"
                     }
                   }}
                 />
               </div>
-            </SignedIn>
-
-            {/* Post Project Button (Desktop) */}
-            <SignedIn>
-              <Link to="/post-project" className="hidden lg:block">
-                <Button variant="terracotta" size="sm">
-                  Post Project
-                </Button>
-              </Link>
             </SignedIn>
 
             {/* Mobile Menu Button */}
@@ -178,7 +182,7 @@ export function Navbar() {
                   </motion.div>
                 ))}
 
-                {/* Mobile Auth */}
+                {/* Mobile Auth & Actions */}
                 <motion.div
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
@@ -192,23 +196,23 @@ export function Navbar() {
                       </Button>
                     </SignInButton>
                   </SignedOut>
+
                   <SignedIn>
                     <Link to="/dashboard/client" onClick={() => setIsOpen(false)}>
                       <Button className="w-full" variant="outline">
                         Dashboard
                       </Button>
                     </Link>
-                    <div className="flex justify-center">
-                      <UserButton />
-                    </div>
-                  </SignedIn>
-                  <SignedIn>
                     <Link to="/post-project" onClick={() => setIsOpen(false)}>
                       <Button className="w-full" variant="terracotta">
                         Post Project
                       </Button>
                     </Link>
+                    <div className="flex justify-center pt-4">
+                      <UserButton afterSignOutUrl="/" />
+                    </div>
                   </SignedIn>
+
                   <Button
                     variant="ghost"
                     size="sm"

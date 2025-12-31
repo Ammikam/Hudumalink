@@ -7,8 +7,8 @@ const navItems = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/inspiration', icon: Compass, label: 'Explore' },
   { href: '/post-project', icon: Plus, label: 'Post', isMain: true },
-  { href: '/dashboard/client', icon: MessageCircle, label: 'Chat' },
-  { href: '/dashboard/client', icon: User, label: 'Profile' },
+  { href: '/messages', icon: MessageCircle, label: 'Messages' },
+  { href: '/profile', icon: User, label: 'Profile' },
 ];
 
 export function MobileNav() {
@@ -16,20 +16,21 @@ export function MobileNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden glass-effect border-t border-border">
-      <div className="flex items-center justify-around h-16 px-2">
+      <div className="flex items-center justify-around py-2 px-4">
         {navItems.map((item) => {
           const isActive = location.pathname === item.href;
           const Icon = item.icon;
 
           if (item.isMain) {
             return (
-              <Link key={item.href} to={item.href}>
+              <Link key={item.href} to={item.href} className="relative">
                 <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center shadow-medium -mt-4"
+                  whileTap={{ scale: 0.9 }}
+                  className="absolute -top-6 left-1/2 -translate-x-1/2"
                 >
-                  <Icon className="w-6 h-6 text-secondary-foreground" />
+                  <div className="w-16 h-16 rounded-3xl bg-primary flex items-center justify-center shadow-strong ring-8 ring-background">
+                    <Icon className="w-8 h-8 text-primary-foreground" />
+                  </div>
                 </motion.div>
               </Link>
             );
@@ -37,27 +38,32 @@ export function MobileNav() {
 
           return (
             <Link
-              key={item.href + item.label}
+              key={item.href}
               to={item.href}
-              className="flex flex-col items-center gap-1 py-2 px-3"
+              className="flex flex-col items-center gap-1.5 py-3 px-4 rounded-xl transition-all"
             >
               <div className="relative">
                 <Icon
                   className={cn(
-                    'w-6 h-6 transition-colors',
-                    isActive ? 'text-primary' : 'text-muted-foreground'
+                    'w-7 h-7 transition-all duration-300',
+                    isActive 
+                      ? 'text-primary drop-shadow-glow' 
+                      : 'text-muted-foreground'
                   )}
                 />
                 {isActive && (
                   <motion.div
-                    layoutId="mobileNavIndicator"
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                    layoutId="mobileActiveIndicator"
+                    className="absolute -inset-2 rounded-full bg-primary/10"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
               </div>
               <span
                 className={cn(
-                  'text-xs font-medium',
+                  'text-xs font-medium transition-colors',
                   isActive ? 'text-primary' : 'text-muted-foreground'
                 )}
               >

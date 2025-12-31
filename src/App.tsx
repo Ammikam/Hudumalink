@@ -2,7 +2,7 @@ import { Toaster } from "../src/components/ui/toaster";
 import { Toaster as Sonner } from "../src/components/ui/sonner";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from '@clerk/clerk-react';
 
 import HomePage from "../src/pages/Homepage";
@@ -17,39 +17,28 @@ import SuccessPage from "./pages/SuccessPage";
 const queryClient = new QueryClient();
 const publishableKey = "pk_test_aW5maW5pdGUtZ2liYm9uLTcwLmNsZXJrLmFjY291bnRzLmRldiQ";
 
-function Root() {
-  const navigate = useNavigate();
-
-  return (
-    <ClerkProvider
-      publishableKey={publishableKey}
-      navigate={(to) => navigate(to)}
-    >
+const App = () => (
+  <ClerkProvider publishableKey={publishableKey}>
+    <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/inspiration" element={<InspirationPage />} />
-          <Route path="/designers" element={<DesignersPage />} />
-          <Route path="/designer/:id" element={<DesignerProfilePage />} />
-          <Route path="/post-project" element={<PostProjectPage />} />
-          <Route path="/dashboard/client" element={<ClientDashboard />} />
-          <Route path="/dashboard/designer" element={<ClientDashboard />} />
-          <Route path="/success" element={<SuccessPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/inspiration" element={<InspirationPage />} />
+            <Route path="/designers" element={<DesignersPage />} />
+            <Route path="/designer/:id" element={<DesignerProfilePage />} />
+            <Route path="/post-project" element={<PostProjectPage />} />
+            <Route path="/dashboard/client" element={<ClientDashboard />} />
+            <Route path="/dashboard/designer" element={<ClientDashboard />} />
+            <Route path="/success" element={<SuccessPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
       </TooltipProvider>
-    </ClerkProvider>
-  );
-}
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <Root />
-    </BrowserRouter>
-  </QueryClientProvider>
+    </QueryClientProvider>
+  </ClerkProvider>
 );
 
 export default App;
