@@ -2,8 +2,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import projectRoutes from './routes/Projects';
-
+import projectRoutes from './routes/projects';
+import designerRoutes from './routes/Designers'
 dotenv.config();
 
 const app = express();
@@ -21,6 +21,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/projects', projectRoutes);
+app.use('/api/designers', designerRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI!)

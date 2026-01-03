@@ -64,6 +64,8 @@ export function Navbar() {
             ))}
           </div>
 
+          
+
           {/* Right Side - Actions + Profile (furthest right) */}
           <div className="flex items-center gap-4">
             {/* Dark Mode Toggle */}
@@ -97,6 +99,12 @@ export function Navbar() {
                 )}
               </AnimatePresence>
             </Button>
+
+            <Link to="/dashboard/designer" className="hidden lg:block">
+  <Button variant="outline" size="sm">
+    Designer View
+  </Button>
+</Link>
 
             {/* Signed Out - Sign In Button */}
             <SignedOut>
