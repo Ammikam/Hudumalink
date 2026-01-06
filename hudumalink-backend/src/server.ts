@@ -1,12 +1,24 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import { v2 as cloudinary } from 'cloudinary';
+
 import dotenv from 'dotenv';
-import projectRoutes from './routes/projects';
-import designerRoutes from './routes/Designers'
+import projectRoutes from './routes/Projects';
+import designerRoutes from './routes/Designers';
+import uploadRoutes from './routes/Upload';
 dotenv.config();
 
+
+
 const app = express();
+
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Middleware
 app.use(cors({
@@ -20,8 +32,10 @@ app.get('/', (req, res) => {
   res.send('Hudumalink Backend Live 🇰🇪');
 });
 
+
 app.use('/api/projects', projectRoutes);
 app.use('/api/designers', designerRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI!)

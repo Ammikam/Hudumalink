@@ -91,27 +91,34 @@ export default function PostProjectPage() {
   };
 
   // Handle image upload
-  const handleFileUpload = async (files: File[]) => {
-    setUploadingImages(true);
+ const handleFileUpload = async (files: File[]) => {
+  setUploadingImages(true);
+  
+  try {
+    // Create FormData and append files
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('images', file);
+    });
     
-    try {
-      // Option 1: Upload to your backend which then uploads to Cloudinary/S3
-      const formData = new FormData();
-      files.forEach(file => formData.append('images', file));
-      
-      const response = await api.uploadImages(formData);
-      const imageUrls = response.urls; // Array of uploaded image URLs
-      
-      // Add to preview
-      setPreviewUrls(prev => [...prev, ...imageUrls]);
-      
-    } catch (error) {
-      console.error('Image upload failed:', error);
-      alert('Failed to upload images. Please try again.');
-    } finally {
-      setUploadingImages(false);
-    }
-  };
+    // Upload to backend
+    const response = await api.uploadProjectImages(formData);
+    
+    console.log('Upload response:', response);
+    
+    // Add uploaded URLs to preview
+    setPreviewUrls(prev => [...prev, ...response.urls]);
+    
+    // Keep file references (optional, for local preview)
+    setUploadedFiles(prev => [...prev, ...files]);
+    
+  } catch (error) {
+    console.error('Image upload failed:', error);
+    alert(error instanceof Error ? error.message : 'Failed to upload images. Please try again.');
+  } finally {
+    setUploadingImages(false);
+  }
+};
 
   // Handle form submission
   const handleSubmit = async () => {
