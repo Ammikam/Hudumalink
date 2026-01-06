@@ -1,88 +1,77 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, TrendingUp, CheckCircle } from 'lucide-react';
-import { useStore } from '../../store/use-store';
-import { formatCurrency } from '../../data/MockData';
+import { Sparkles, TrendingUp, CheckCircle, Home } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const activities = [
+  {
+    type: 'project_posted',
+    message: 'Someone in Westlands just posted a KSh 1.2M living room project',
+    icon: Home,
+    color: 'text-primary',
+  },
+  {
+    type: 'designer_hired',
+    message: 'A client in Karen hired a designer for a luxury kitchen makeover',
+    icon: TrendingUp,
+    color: 'text-secondary',
+  },
+  {
+    type: 'project_completed',
+    message: 'A modern bedroom project in Kilimani was just completed!',
+    icon: CheckCircle,
+    color: 'text-accent',
+  },
+  {
+    type: 'new_designer',
+    message: 'New designer joined from Mombasa specializing in coastal style',
+    icon: Sparkles,
+    color: 'text-gold',
+  },
+];
 
 export function ActivityFeed() {
-  const { activityFeed } = useStore();
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % activityFeed.length);
-    }, 4000);
+      setCurrentIndex((prev) => (prev + 1) % activities.length);
+    }, 4500);
+
     return () => clearInterval(interval);
-  }, [activityFeed.length]);
+  }, []);
 
-  const currentActivity = activityFeed[currentIndex];
-
-  const getIcon = () => {
-    switch (currentActivity.type) {
-      case 'project_posted':
-        return <Sparkles className="w-4 h-4" />;
-      case 'designer_hired':
-        return <TrendingUp className="w-4 h-4" />;
-      case 'project_completed':
-        return <CheckCircle className="w-4 h-4" />;
-      default:
-        return <Sparkles className="w-4 h-4" />;
-    }
-  };
-
-  const getMessage = () => {
-    switch (currentActivity.type) {
-      case 'project_posted':
-        return (
-          <>
-            <span className="font-semibold">{currentActivity.clientName}</span> in{' '}
-            <span className="font-semibold">{currentActivity.location}</span> just posted a{' '}
-            <span className="text-secondary font-semibold">
-              {formatCurrency(currentActivity.amount)}
-            </span>{' '}
-            {currentActivity.projectType} project
-          </>
-        );
-      case 'designer_hired':
-        return (
-          <>
-            <span className="font-semibold">{currentActivity.clientName}</span> in{' '}
-            <span className="font-semibold">{currentActivity.location}</span> hired a designer for{' '}
-            <span className="text-secondary font-semibold">
-              {formatCurrency(currentActivity.amount)}
-            </span>
-          </>
-        );
-      case 'project_completed':
-        return (
-          <>
-            <span className="font-semibold">{currentActivity.clientName}</span>'s{' '}
-            {currentActivity.projectType} project in{' '}
-            <span className="font-semibold">{currentActivity.location}</span> was just completed!
-          </>
-        );
-      default:
-        return null;
-    }
-  };
+  const current = activities[currentIndex];
+  const Icon = current.icon;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 rounded-full">
-      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-        {getIcon()}
+    <div className="flex items-center gap-4 px-5 py-3 bg-card/80 backdrop-blur-sm rounded-full border border-border shadow-soft">
+      <div className={cn(
+        "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center",
+        current.type === 'project_posted' && 'bg-primary/10',
+        current.type === 'designer_hired' && 'bg-secondary/10',
+        current.type === 'project_completed' && 'bg-accent/10',
+        current.type === 'new_designer' && 'bg-gold/10',
+      )}>
+        <Icon className={cn("w-5 h-5", current.color)} />
       </div>
+
       <AnimatePresence mode="wait">
-        <motion.p
+        <motion.div
           key={currentIndex}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}
-          className="text-sm text-foreground"
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.4 }}
+          className="flex items-center gap-2"
         >
-          {getMessage()}
-          <span className="text-muted-foreground ml-2">{currentActivity.timestamp}</span>
-        </motion.p>
+          <p className="text-sm font-medium text-foreground">
+            {current.message}
+          </p>
+          <span className="text-xs text-muted-foreground">
+            • Just now
+          </span>
+        </motion.div>
       </AnimatePresence>
     </div>
   );
