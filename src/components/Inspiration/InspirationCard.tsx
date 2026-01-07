@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Heart } from 'lucide-react';
-import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
-import { Button } from '@/components/ui/button';
+import { BeforeAfterSlider } from '@/components/ui/before-after-slider'
 import { Badge } from '@/components/ui/badge';
 import { useStore } from '../../store/use-store';
 import { cn } from '../../lib/utils';

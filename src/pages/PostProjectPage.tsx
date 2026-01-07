@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation} from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Upload, ArrowRight, ArrowLeft, Check, Loader2, MapPin, Calendar } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
+
 import { Layout } from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -120,43 +122,45 @@ export default function PostProjectPage() {
   }
 };
 
+const { userId, isLoaded } = useAuth();
+
   // Handle form submission
   const handleSubmit = async () => {
-    if (!validateStep(3)) return;
+  if (!validateStep(3)) return;
 
-    setSubmitting(true);
+  setSubmitting(true);
 
-    try {
-      const projectData = {
-        title,
-        description,
-        location: projectLocation,
-        budget: budget[0],
-        timeline,
-        styles: selectedStyles,
-        photos: previewUrls,
-        clientName: name,
-        clientEmail: email,
-        clientPhone: phone,
-        status: 'open',
-        proposals: [],
-        createdAt: new Date().toISOString()
-      };
+  try {
+    const projectData = {
+      title,
+      description,
+      location: projectLocation,
+      budget: budget[0],
+      timeline,
+      styles: selectedStyles,
+      photos: previewUrls,
+      client: {
+        clerkId: userId,  // ← THIS IS REQUIRED
+        name,
+        email,
+        phone,
+      },
+    };
 
-      await api.createProject(projectData);
-      
-      // Navigate to success page
-      navigate('/project-success', { 
+    const response = await api.createProject(projectData);
+
+    if (response.success) {
+      navigate('/success', { 
         state: { projectTitle: title } 
       });
-
-    } catch (error) {
-      console.error('Failed to submit project:', error);
-      alert('Failed to submit project. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
-  };
+  } catch (error) {
+    console.error('Failed to submit project:', error);
+    alert('Failed to submit project. Please try again.');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const progress = ((step + 1) / steps.length) * 100;
 

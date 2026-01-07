@@ -41,6 +41,13 @@
 
 import mongoose, { Schema, Document } from 'mongoose';
 
+interface IClient {
+  clerkId: string;  // Clerk user ID
+  name: string;
+  email: string;
+  phone: string;
+}
+
 interface IProject extends Document {
   title: string;
   description: string;
@@ -49,13 +56,18 @@ interface IProject extends Document {
   timeline: string;
   styles: string[];
   photos: string[];
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
+  client: IClient;  // Client information with Clerk ID
   status: 'open' | 'in_progress' | 'completed';
   proposals: any[];
   createdAt: Date;
 }
+
+const ClientSchema = new Schema({
+  clerkId: { type: String, required: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  phone: { type: String, required: true },
+});
 
 const ProjectSchema = new Schema<IProject>({
   title: { type: String, required: true },
@@ -65,9 +77,7 @@ const ProjectSchema = new Schema<IProject>({
   timeline: { type: String, required: true },
   styles: [{ type: String }],
   photos: [{ type: String }],
-  clientName: { type: String, required: true },
-  clientEmail: { type: String, required: true },
-  clientPhone: { type: String, required: true },
+  client: { type: ClientSchema, required: true },  // Embedded client info
   status: { 
     type: String, 
     enum: ['open', 'in_progress', 'completed'],
@@ -76,5 +86,8 @@ const ProjectSchema = new Schema<IProject>({
   proposals: [{ type: Schema.Types.Mixed }],
   createdAt: { type: Date, default: Date.now },
 });
+
+// Index for faster queries by user
+ProjectSchema.index({ 'client.clerkId': 1 });
 
 export default mongoose.model<IProject>('Project', ProjectSchema);
