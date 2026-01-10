@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { api } from '@/services/Api';
+import { api } from '@/services/api';
 import { InspirationCard } from '../Inspiration/InspirationCard';
 
 interface PortfolioItem {

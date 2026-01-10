@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
-import { useRoles } from '@/contexts/Rolecontext';
-import { Link, useNavigate } from 'react-router-dom';
+import { useRoles } from '@/contexts/RoleContext';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Loader2,
@@ -12,9 +12,8 @@ import {
   MessageSquare,
   Eye,
   FileText,
-  Upload,
-  MapPin,          
-  Calendar,        
+  MapPin,
+  Calendar,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout/Layout';
@@ -30,7 +29,7 @@ interface Project {
   description: string;
   location: string;
   budget: number;
-  timeline: string;       
+  timeline: string;
   styles: string[];
   photos: string[];
   status: 'open' | 'in_progress' | 'completed';
@@ -48,23 +47,22 @@ interface PortfolioItem {
 }
 
 export default function DesignerDashboard() {
-  const navigate = useNavigate();
-
   const { userId, isLoaded: isAuthLoaded } = useAuth();
   const { user, isLoaded: isUserLoaded } = useUser();
-  const { isDesigner } = useRoles();
+  const { isDesigner, designerProfile, loading: rolesLoading } = useRoles();
 
   const [invites, setInvites] = useState<Project[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isLoaded = isAuthLoaded && isUserLoaded;
+  const isLoaded = isAuthLoaded && isUserLoaded && !rolesLoading;
 
+  // Fetch invites for designer
   useEffect(() => {
     if (!isLoaded) return;
 
     if (!isDesigner) {
-      navigate('/become-designer');
+      setLoading(false); // Stop loading if not a designer
       return;
     }
 
@@ -74,7 +72,6 @@ export default function DesignerDashboard() {
         const data = await res.json();
 
         if (data.success) {
-          // Filter invites where this designer is invited
           const myInvites = data.projects.filter(
             (p: Project) => p.invitedDesigner === userId
           );
@@ -88,7 +85,7 @@ export default function DesignerDashboard() {
     };
 
     fetchInvites();
-  }, [isLoaded, isDesigner, userId, navigate]);
+  }, [isLoaded, isDesigner, userId]);
 
   if (!isLoaded || loading) {
     return (
@@ -101,11 +98,31 @@ export default function DesignerDashboard() {
     );
   }
 
-  if (!isDesigner) return null; // Redirect handled
+  // Case: user is not a designer
+  if (!isDesigner) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-32 text-center">
+          <Card className="p-16">
+            <h2 className="font-display text-3xl font-bold mb-4">
+              You are not a designer yet
+            </h2>
+            <p className="text-muted-foreground mb-8">
+              Once your account is approved as a designer, you'll see your invites and portfolio here.
+            </p>
+            <p className="text-muted-foreground">
+              For now, you can continue using client features or contact admin to become a designer.
+            </p>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
 
+  // Designer stats
   const stats = {
     activeInvites: invites.length,
-    rating: 4.8,
+    rating: designerProfile?.rating || 4.8,
     portfolioItems: portfolio.length,
     totalEarnings: 0,
   };
@@ -155,7 +172,6 @@ export default function DesignerDashboard() {
                 </div>
               </div>
             </Card>
-
             <Card className="card-premium p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center">
@@ -167,7 +183,6 @@ export default function DesignerDashboard() {
                 </div>
               </div>
             </Card>
-
             <Card className="card-premium p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center">
@@ -179,7 +194,6 @@ export default function DesignerDashboard() {
                 </div>
               </div>
             </Card>
-
             <Card className="card-premium p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
@@ -198,14 +212,11 @@ export default function DesignerDashboard() {
             <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="invites">Project Invites ({invites.length})</TabsTrigger>
             </TabsList>
-
             <TabsContent value="invites" className="space-y-6 mt-8">
               {invites.length === 0 ? (
                 <Card className="p-16 text-center">
                   <Briefcase className="w-20 h-20 mx-auto mb-6 text-muted-foreground" />
-                  <h3 className="font-display text-3xl font-bold mb-4">
-                    No Invites Yet
-                  </h3>
+                  <h3 className="font-display text-3xl font-bold mb-4">No Invites Yet</h3>
                   <p className="text-lg text-muted-foreground mb-8">
                     Complete your profile to start receiving project invites
                   </p>

@@ -1,90 +1,111 @@
 import express from 'express';
 import Project from '../models/Project';
+import { requireAuth } from '../middlewares/auth';
+import { requireAdmin } from '../middlewares/roles';
 
 const router = express.Router();
 
-// GET /api/projects - Get all projects with success wrapper
-router.get('/', async (req, res) => {
+/**
+ * CLIENT: Get own projects
+ * GET /api/projects
+ */
+router.get('/', requireAuth, async (req: any, res) => {
+  try {
+    const projects = await Project.find({
+      'client.clerkId': req.user.clerkId,
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      projects,
+      count: projects.length,
+    });
+  } catch (error) {
+    console.error('Error fetching client projects:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch projects',
+    });
+  }
+});
+
+/**
+ * ADMIN: Get all projects
+ * GET /api/projects/admin
+ */
+router.get('/admin', requireAuth, requireAdmin, async (req, res) => {
   try {
     const projects = await Project.find().sort({ createdAt: -1 });
-    
+
     res.json({
       success: true,
       projects,
       count: projects.length,
     });
   } catch (error) {
-    console.error('Error fetching projects:', error);
-    res.status(500).json({ 
+    console.error('Error fetching admin projects:', error);
+    res.status(500).json({
       success: false,
-      error: 'Failed to fetch projects' 
+      error: 'Failed to fetch projects',
     });
   }
 });
 
-// GET /api/projects/user/:clerkId - Get projects by Clerk user ID
-router.get('/user/:clerkId', async (req, res) => {
-  try {
-    const { clerkId } = req.params;
-    
-    const projects = await Project.find({ 'client.clerkId': clerkId })
-      .sort({ createdAt: -1 });
-    
-    res.json({
-      success: true,
-      projects,
-      count: projects.length,
-    });
-  } catch (error) {
-    console.error('Error fetching user projects:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch projects' 
-    });
-  }
-});
-
-// GET /api/projects/:id - Get single project
-router.get('/:id', async (req, res) => {
+/**
+ * Get single project (client OR admin)
+ * GET /api/projects/:id
+ */
+router.get('/:id', requireAuth, async (req: any, res) => {
   try {
     const project = await Project.findById(req.params.id);
-    
+
     if (!project) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'Project not found' 
+        error: 'Project not found',
       });
     }
-    
+
+    // Client can only view own project
+    if (
+      !req.user.isAdmin &&
+      project.client.clerkId !== req.user.clerkId
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied',
+      });
+    }
+
     res.json({
       success: true,
       project,
     });
   } catch (error) {
     console.error('Error fetching project:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'Failed to fetch project' 
+      error: 'Failed to fetch project',
     });
   }
 });
 
-// POST /api/projects - Create new project
-router.post('/', async (req, res) => {
+/**
+ * Create project (client only)
+ * POST /api/projects
+ */
+router.post('/', requireAuth, async (req: any, res) => {
   try {
-    // Validate required client fields
-    if (!req.body.client || !req.body.client.clerkId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Client information with Clerk ID is required',
-      });
-    }
+    const project = new Project({
+      ...req.body,
+      client: {
+        ...req.body.client,
+        clerkId: req.user.clerkId, // 🔐 never trust frontend
+      },
+    });
 
-    const project = new Project(req.body);
     await project.save();
-    
-    console.log('Project created:', project._id, 'for user:', project.client.clerkId);
-    
+
     res.status(201).json({
       success: true,
       project,
@@ -92,29 +113,41 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating project:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'Failed to create project' 
+      error: 'Failed to create project',
     });
   }
 });
 
-// PATCH /api/projects/:id - Update project
-router.patch('/:id', async (req, res) => {
+/**
+ * Update project (owner or admin)
+ * PATCH /api/projects/:id
+ */
+router.patch('/:id', requireAuth, async (req: any, res) => {
   try {
-    const project = await Project.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
+    const project = await Project.findById(req.params.id);
+
     if (!project) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'Project not found' 
+        error: 'Project not found',
       });
     }
-    
+
+    if (
+      !req.user.isAdmin &&
+      project.client.clerkId !== req.user.clerkId
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied',
+      });
+    }
+
+    Object.assign(project, req.body);
+    await project.save();
+
     res.json({
       success: true,
       project,
@@ -122,34 +155,37 @@ router.patch('/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating project:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'Failed to update project' 
+      error: 'Failed to update project',
     });
   }
 });
 
-// DELETE /api/projects/:id - Delete project
-router.delete('/:id', async (req, res) => {
+/**
+ * Delete project (admin only)
+ * DELETE /api/projects/:id
+ */
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const project = await Project.findByIdAndDelete(req.params.id);
-    
+
     if (!project) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        error: 'Project not found' 
+        error: 'Project not found',
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Project deleted successfully',
     });
   } catch (error) {
     console.error('Error deleting project:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: 'Failed to delete project' 
+      error: 'Failed to delete project',
     });
   }
 });

@@ -14,6 +14,7 @@ import ClientDashboard from "./pages/ClientDashboard";
 import NotFound from "./pages/NotFound";
 import SuccessPage from "./pages/SuccessPage";
 import DesignerDashboard from "./pages/DesignerDashboard";
+import { RoleProvider } from '@/contexts/RoleContext';
 
 const queryClient = new QueryClient();
 const publishableKey = "pk_test_aW5maW5pdGUtZ2liYm9uLTcwLmNsZXJrLmFjY291bnRzLmRldiQ";
@@ -24,6 +25,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <RoleProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<HomePage />} />
@@ -33,11 +35,12 @@ const App = () => (
             <Route path="/post-project" element={<PostProjectPage />} />
             <Route path="/dashboard/client" element={<ClientDashboard />} />
             <Route path="/dashboard/designer" element={<DesignerDashboard />} />
-            <Route path="/dashboard/designer" element={<ClientDashboard />} />
+            <Route path="/dashboard/client" element={<ClientDashboard />} />
             <Route path="/success" element={<SuccessPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </RoleProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </ClerkProvider>

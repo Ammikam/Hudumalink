@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/data/MockData';
 import { X } from 'lucide-react';
-import { api } from '@/services/Api';
+import { api } from '@/services/api';
 
 const steps = ['Project Details', 'Upload Photos', 'Budget & Style', 'Contact'];
 const styles = ['Modern', 'African Fusion', 'Minimalist', 'Luxury', 'Bohemian', 'Coastal', 'Budget-Friendly'];
@@ -24,6 +24,8 @@ const timelines = ['1-2 weeks', '2-4 weeks', '1-2 months', '2-3 months', '3+ mon
 export default function PostProjectPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { userId, getToken, isLoaded } = useAuth(); // ← Added getToken here
+  
   const prefilled = location.state as {
     roomType?: string;
     budgetMin?: number;
@@ -93,76 +95,115 @@ export default function PostProjectPage() {
   };
 
   // Handle image upload
- const handleFileUpload = async (files: File[]) => {
-  setUploadingImages(true);
-  
-  try {
-    // Create FormData and append files
-    const formData = new FormData();
-    files.forEach(file => {
-      formData.append('images', file);
-    });
+  const handleFileUpload = async (files: File[]) => {
+    setUploadingImages(true);
     
-    // Upload to backend
-    const response = await api.uploadProjectImages(formData);
-    
-    console.log('Upload response:', response);
-    
-    // Add uploaded URLs to preview
-    setPreviewUrls(prev => [...prev, ...response.urls]);
-    
-    // Keep file references (optional, for local preview)
-    setUploadedFiles(prev => [...prev, ...files]);
-    
-  } catch (error) {
-    console.error('Image upload failed:', error);
-    alert(error instanceof Error ? error.message : 'Failed to upload images. Please try again.');
-  } finally {
-    setUploadingImages(false);
-  }
-};
-
-const { userId, isLoaded } = useAuth();
+    try {
+      // Create FormData and append files
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('images', file);
+      });
+      
+      // Upload to backend
+      const response = await api.uploadProjectImages(formData);
+      
+      console.log('Upload response:', response);
+      
+      // Add uploaded URLs to preview
+      setPreviewUrls(prev => [...prev, ...response.urls]);
+      
+      // Keep file references (optional, for local preview)
+      setUploadedFiles(prev => [...prev, ...files]);
+      
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to upload images. Please try again.');
+    } finally {
+      setUploadingImages(false);
+    }
+  };
 
   // Handle form submission
   const handleSubmit = async () => {
-  if (!validateStep(3)) return;
+    if (!validateStep(3)) return;
 
-  setSubmitting(true);
+    setSubmitting(true);
 
-  try {
-    const projectData = {
-      title,
-      description,
-      location: projectLocation,
-      budget: budget[0],
-      timeline,
-      styles: selectedStyles,
-      photos: previewUrls,
-      client: {
-        clerkId: userId,  // ← THIS IS REQUIRED
-        name,
-        email,
-        phone,
-      },
-    };
+    try {
+      // Get authentication token
+      const token = await getToken();
+      
+      if (!token) {
+        alert('Authentication required. Please sign in again.');
+        navigate('/sign-in');
+        return;
+      }
 
-    const response = await api.createProject(projectData);
+      const projectData = {
+        title,
+        description,
+        location: projectLocation,
+        budget: budget[0],
+        timeline,
+        styles: selectedStyles,
+        photos: previewUrls,
+        client: {
+          clerkId: userId,
+          name,
+          email,
+          phone,
+        },
+      };
 
-    if (response.success) {
-      navigate('/success', { 
-        state: { projectTitle: title } 
-      });
+      // Pass token to createProject
+      const response = await api.createProject(projectData, token);
+
+      if (response.success) {
+        navigate('/success', { 
+          state: { 
+            message: 'Project posted successfully!',
+            projectTitle: title 
+          } 
+        });
+      }
+    } catch (error) {
+      console.error('Failed to submit project:', error);
+      alert(error instanceof Error ? error.message : 'Failed to submit project. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-  } catch (error) {
-    console.error('Failed to submit project:', error);
-    alert('Failed to submit project. Please try again.');
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
 
   const progress = ((step + 1) / steps.length) * 100;
+
+  // Loading state
+  if (!isLoaded) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center min-h-screen">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Not authenticated
+  if (!userId) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-32 text-center">
+          <h1 className="font-display text-3xl font-bold mb-4">Please Sign In</h1>
+          <p className="text-muted-foreground mb-8">
+            You need to be signed in to post a project.
+          </p>
+          <Button size="lg" onClick={() => navigate('/sign-in')}>
+            Sign In
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout hideFooter>

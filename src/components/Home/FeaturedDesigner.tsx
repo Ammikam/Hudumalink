@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { api } from '@/services/Api';
+import { api } from '@/services/api';
 import { DesignerCard } from '../designers/DesignerCard';
 import { Button } from '../ui/button';
 
