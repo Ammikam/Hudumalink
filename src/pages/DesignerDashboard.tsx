@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency } from '@/data/MockData';
+import DesignerApplicationForm from '@/components/designers/DesignerApplicationForm';
 
 interface Project {
   _id: string;
@@ -99,25 +100,15 @@ export default function DesignerDashboard() {
   }
 
   // Case: user is not a designer
-  if (!isDesigner) {
-    return (
-      <Layout>
-        <div className="container mx-auto py-32 text-center">
-          <Card className="p-16">
-            <h2 className="font-display text-3xl font-bold mb-4">
-              You are not a designer yet
-            </h2>
-            <p className="text-muted-foreground mb-8">
-              Once your account is approved as a designer, you'll see your invites and portfolio here.
-            </p>
-            <p className="text-muted-foreground">
-              For now, you can continue using client features or contact admin to become a designer.
-            </p>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
+ if (!isDesigner) {
+  return (
+    <Layout>
+      <div className="container mx-auto py-8">
+        <DesignerApplicationForm />
+      </div>
+    </Layout>
+  );
+}
 
   // Designer stats
   const stats = {
