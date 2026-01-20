@@ -115,4 +115,24 @@ export const api = {
 
     return res.json();
   },
+
+    // Get project invites for the logged-in designer
+  getDesignerInvites: async (token: string) => {
+    const res = await fetch(`${API_URL}/projects`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to fetch invites');
+    }
+
+    const data = await res.json();
+    if (data.success) {
+      return data.projects;
+    }
+    throw new Error('Invalid response');
+  },
 };
