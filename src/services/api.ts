@@ -21,27 +21,23 @@ export const api = {
     throw new Error('Failed to fetch projects');
   },
 
- // Get projects for logged-in client
-getUserProjects: async (token?: string) => {
-  if (!token) {
-    throw new Error('Authentication required');
-  }
+  // Get projects for logged-in client
+  getUserProjects: async (token?: string) => {
+    if (!token) throw new Error('Authentication required');
 
-  const res = await fetch(`${API_URL}/projects`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
+    const res = await fetch(`${API_URL}/projects`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-  const data = await res.json();
-
-  if (!res.ok || !data.success) {
-    throw new Error(data.error || 'Failed to fetch user projects');
-  }
-
-  return data.projects;
-},
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to fetch user projects');
+    }
+    return data.projects;
+  },
 
   // Upload project images
   uploadProjectImages: async (formData: FormData, token?: string) => {
@@ -99,6 +95,24 @@ getUserProjects: async (token?: string) => {
       const error = await res.json();
       throw new Error(error.error || 'Failed to create project');
     }
+    return res.json();
+  },
+
+  // NEW: Submit designer application
+  submitDesignerApplication: async (formData: FormData, token: string) => {
+    const res = await fetch(`${API_URL}/upload/designer-apply`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to submit application');
+    }
+
     return res.json();
   },
 };

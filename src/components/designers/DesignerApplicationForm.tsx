@@ -1,16 +1,33 @@
 // src/components/DesignerApplicationForm.tsx
-import { useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
-import { Upload, CheckCircle, Image, User, Award, Briefcase, AlertCircle, Shield, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useAuth, useUser } from '@clerk/clerk-react';
+import { Upload, CheckCircle, Image, User, Award, Briefcase, AlertCircle, Shield, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { api } from '@/services/api';
+
+interface PortfolioProject {
+  projectName: string;
+  projectType: string;
+  description: string;
+  beforeImage?: {
+    file: File;
+    preview: string;
+  };
+  afterImage?: {
+    file: File;
+    preview: string;
+  };
+}
 
 const DesignerApplicationForm = () => {
   const { getToken } = useAuth();
+  const { user, isLoaded: isUserLoaded } = useUser();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -22,7 +39,7 @@ const DesignerApplicationForm = () => {
     idNumber: '',
     experience: '',
     education: '',
-    portfolioFiles: [] as any[],
+    portfolioProjects: [] as PortfolioProject[],
     credentials: [] as File[],
     references: [{ name: '', email: '', relation: '' }],
     socialLinks: {
@@ -33,44 +50,76 @@ const DesignerApplicationForm = () => {
     agreeToTerms: false,
   });
 
+  // Pre-fill name and email from Clerk when user loads
+  useEffect(() => {
+    if (isUserLoaded && user) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: user.fullName || [user.firstName, user.lastName].filter(Boolean).join(' ') || '',
+        email: user.primaryEmailAddress?.emailAddress || '',
+      }));
+    }
+  }, [isUserLoaded, user]);
+
   const steps = [
-    { num: 1, title: 'Personal Info', icon: User },
+    { num: 1, title: 'Contact & ID', icon: User },
     { num: 2, title: 'Portfolio', icon: Image },
     { num: 3, title: 'Credentials', icon: Award },
     { num: 4, title: 'References & Agreement', icon: Briefcase },
   ];
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'portfolio' | 'credentials') => {
-    if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-
-    if (type === 'portfolio') {
-      const newFiles = files.map(file => ({
-        file,
-        preview: URL.createObjectURL(file),
-        projectName: '',
-        projectType: '',
-        description: '',
-        beforeAfter: 'after' as 'before' | 'after',
-      }));
-      setFormData(prev => ({ ...prev, portfolioFiles: [...prev.portfolioFiles, ...newFiles] }));
-    } else {
-      setFormData(prev => ({ ...prev, credentials: [...prev.credentials, ...files] }));
-    }
-  };
-
-  const updatePortfolioItem = (index: number, field: string, value: string) => {
-    const updated = [...formData.portfolioFiles];
-    // @ts-ignore
-    updated[index][field] = value;
-    setFormData(prev => ({ ...prev, portfolioFiles: updated }));
-  };
-
-  const removePortfolioItem = (index: number) => {
+  const addPortfolioProject = () => {
     setFormData(prev => ({
       ...prev,
-      portfolioFiles: prev.portfolioFiles.filter((_, i) => i !== index),
+      portfolioProjects: [
+        ...prev.portfolioProjects,
+        {
+          projectName: '',
+          projectType: '',
+          description: '',
+          beforeImage: undefined,
+          afterImage: undefined,
+        },
+      ],
     }));
+  };
+
+  const updatePortfolioProject = (index: number, field: keyof PortfolioProject, value: string) => {
+    const updated = [...formData.portfolioProjects];
+    // @ts-ignore
+    updated[index][field] = value;
+    setFormData(prev => ({ ...prev, portfolioProjects: updated }));
+  };
+
+  const setBeforeImage = (index: number, file: File) => {
+    const updated = [...formData.portfolioProjects];
+    updated[index].beforeImage = {
+      file,
+      preview: URL.createObjectURL(file),
+    };
+    setFormData(prev => ({ ...prev, portfolioProjects: updated }));
+  };
+
+  const setAfterImage = (index: number, file: File) => {
+    const updated = [...formData.portfolioProjects];
+    updated[index].afterImage = {
+      file,
+      preview: URL.createObjectURL(file),
+    };
+    setFormData(prev => ({ ...prev, portfolioProjects: updated }));
+  };
+
+  const removePortfolioProject = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      portfolioProjects: prev.portfolioProjects.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'credentials') => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    setFormData(prev => ({ ...prev, credentials: [...prev.credentials, ...files] }));
   };
 
   const addReference = () => {
@@ -88,63 +137,78 @@ const DesignerApplicationForm = () => {
   };
 
   const handleSubmit = async () => {
-    // Basic validation
-    if (formData.portfolioFiles.length < 5) {
-      alert('Please upload at least 5 portfolio images');
+    const hasValidProject = formData.portfolioProjects.some(
+      (p) =>
+        p.beforeImage &&
+        p.afterImage &&
+        p.projectName.trim() &&
+        p.projectType.trim() &&
+        p.description.trim()
+    );
+
+    if (formData.portfolioProjects.length === 0 || !hasValidProject) {
+      alert('Please add at least one project with Before and After images, name, type, and description');
       return;
     }
+
     if (!formData.agreeToTerms) {
       alert('You must agree to the verification terms');
       return;
     }
 
+    if (!formData.phone.trim() || !formData.idNumber.trim()) {
+      alert('Please provide your phone number and National ID number');
+      return;
+    }
+
     setSubmitting(true);
+
     try {
       const token = await getToken();
       if (!token) throw new Error('Authentication required');
 
       const form = new FormData();
 
-      // Append simple fields
-      form.append('fullName', formData.fullName);
-      form.append('email', formData.email);
-      form.append('phone', formData.phone);
-      form.append('idNumber', formData.idNumber);
+      // Personal info (pre-filled + editable)
+      form.append('fullName', formData.fullName.trim());
+      form.append('email', formData.email.trim());
+      form.append('phone', formData.phone.trim());
+      form.append('idNumber', formData.idNumber.trim());
       form.append('experience', formData.experience);
-      form.append('education', formData.education);
+      form.append('education', formData.education.trim());
+
+      // Social & references
       form.append('socialLinks', JSON.stringify(formData.socialLinks));
       form.append('references', JSON.stringify(formData.references));
 
-      // Portfolio
-      formData.portfolioFiles.forEach((item, i) => {
-        form.append('portfolioImages', item.file);
-        form.append(`portfolioMeta[${i}][projectName]`, item.projectName);
-        form.append(`portfolioMeta[${i}][projectType]`, item.projectType);
-        form.append(`portfolioMeta[${i}][description]`, item.description);
-        form.append(`portfolioMeta[${i}][beforeAfter]`, item.beforeAfter);
+      // Portfolio: all images under 'portfolioImages'
+      formData.portfolioProjects.forEach((project, i) => {
+        if (project.beforeImage) {
+          form.append('portfolioImages', project.beforeImage.file);
+        }
+        if (project.afterImage) {
+          form.append('portfolioImages', project.afterImage.file);
+        }
+        form.append(`projects[${i}][projectName]`, project.projectName);
+        form.append(`projects[${i}][projectType]`, project.projectType);
+        form.append(`projects[${i}][description]`, project.description);
       });
 
       // Credentials
-      formData.credentials.forEach(file => {
+      formData.credentials.forEach((file) => {
         form.append('credentials', file);
       });
 
-      const res = await fetch('/api/designer/apply', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      const data = await res.json();
+      const data = await api.submitDesignerApplication(form, token);
 
       if (data.success) {
         setSubmitted(true);
       } else {
         alert(data.error || 'Submission failed');
       }
-    } catch (err) {
-      console.error(err);
-      alert('Network error. Please try again later.');
+    } catch (err: any) {
+      console.error('Submission error:', err);
+      alert(err.message || 'Failed to submit. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -159,8 +223,8 @@ const DesignerApplicationForm = () => {
           Thank you for applying to become a verified designer on HudumaLink.
         </p>
         <p className="text-muted-foreground">
-          Our team will carefully review your portfolio, credentials, and references.
-          You will receive an email notification within 3-5 business days.
+          Our team will review your portfolio and credentials within 3-5 business days.
+          You'll be notified by email when approved.
         </p>
       </Card>
     );
@@ -172,7 +236,7 @@ const DesignerApplicationForm = () => {
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold mb-4">Become a Verified Designer</h1>
           <p className="text-lg text-muted-foreground">
-            Join Kenya's most trusted interior design marketplace. Only professionals with proven work are accepted.
+            Join Kenya's most trusted interior design marketplace.
           </p>
         </div>
 
@@ -212,64 +276,50 @@ const DesignerApplicationForm = () => {
           })}
         </div>
 
-        {/* Step 1: Personal Info */}
+        {/* Step 1: Contact & ID (Pre-filled Name/Email) */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-5 flex gap-4">
-              <Shield className="w-6 h-6 text-red-600 flex-shrink-0" />
+            <div className="bg-green-50 border border-green-200 rounded-lg p-5 flex gap-4">
+              <Shield className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div>
-                <p className="font-semibold text-red-800">Identity Verification Required</p>
-                <p className="text-sm text-red-700 mt-1">
-                  We verify every designer to protect clients from fraud. Your ID information is encrypted and never shared.
+                <p className="font-semibold text-green-800">Your Account Info</p>
+                <p className="text-sm text-green-700 mt-1">
+                  Name and email are taken from your verified account. Only phone and ID number are needed.
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                  placeholder="John Kamau"
-                />
+                <Label>Full Name (from your account)</Label>
+                <Input value={formData.fullName} disabled className="bg-gray-50" />
               </div>
               <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="designer@gmail.com"
-                />
+                <Label>Email (verified)</Label>
+                <Input value={formData.email} disabled className="bg-gray-50" />
               </div>
               <div>
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label>Phone Number *</Label>
                 <Input
-                  id="phone"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder="+254 712 345 678"
                 />
               </div>
               <div>
-                <Label htmlFor="idNumber">National ID Number <span className="text-red-500">*</span></Label>
+                <Label>National ID Number *</Label>
                 <Input
-                  id="idNumber"
                   value={formData.idNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, idNumber: e.target.value }))}
                   placeholder="12345678"
                 />
               </div>
               <div>
-                <Label htmlFor="experience">Years of Experience</Label>
+                <Label>Years of Experience</Label>
                 <select
-                  id="experience"
                   value={formData.experience}
                   onChange={(e) => setFormData(prev => ({ ...prev, experience: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2 border rounded-lg"
                 >
                   <option value="">Select...</option>
                   <option value="0-2">0-2 years</option>
@@ -279,137 +329,162 @@ const DesignerApplicationForm = () => {
                 </select>
               </div>
               <div>
-                <Label htmlFor="education">Education / Certification</Label>
+                <Label>Education / Certification</Label>
                 <Input
-                  id="education"
                   value={formData.education}
                   onChange={(e) => setFormData(prev => ({ ...prev, education: e.target.value }))}
-                  placeholder="B.Sc Interior Design, University of Nairobi"
+                  placeholder="B.Sc Interior Design"
                 />
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 2: Portfolio */}
+        {/* Step 2: Portfolio - Grouped Before/After */}
         {currentStep === 2 && (
           <div className="space-y-8">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-5">
               <div className="flex gap-4">
                 <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0" />
                 <div>
-                  <p className="font-semibold text-amber-800 mb-2">Portfolio Requirements</p>
+                  <p className="font-semibold text-amber-800 mb-2">Portfolio Requirements (Testing Mode)</p>
                   <ul className="text-sm text-amber-700 space-y-1 list-disc list-inside">
-                    <li>Minimum 5 high-quality images of completed projects</li>
-                    <li>Include before & after photos where possible</li>
-                    <li>All work must be your own — stolen images will result in permanent ban</li>
-                    <li>Add project name, type, and description for each image</li>
+                    <li>Add at least 1 project with Before & After images</li>
+                    <li>Describe what you changed and why</li>
+                    <li>All work must be original</li>
                   </ul>
                 </div>
               </div>
             </div>
 
-            <div>
-              <Label>Upload Portfolio Images (Max 10MB each)</Label>
-              <div className="mt-3 border-2 border-dashed border-gray-300 rounded-lg p-10 text-center hover:border-purple-500 transition">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) => handleFileUpload(e, 'portfolio')}
-                  className="hidden"
-                  id="portfolio-upload"
-                />
-                <label htmlFor="portfolio-upload" className="cursor-pointer">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-lg font-medium">Click to upload images</p>
-                  <p className="text-sm text-gray-500 mt-1">JPG, PNG • Up to 10MB</p>
-                </label>
-              </div>
-            </div>
+            <div className="space-y-6">
+              <h3 className="font-semibold text-lg">Your Projects ({formData.portfolioProjects.length})</h3>
 
-            {formData.portfolioFiles.length > 0 && (
-              <div className="space-y-6">
-                <h3 className="font-semibold text-lg">Your Portfolio ({formData.portfolioFiles.length} images)</h3>
-                {formData.portfolioFiles.map((item, index) => (
-                  <Card key={index} className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <img
-                          src={item.preview}
-                          alt="Portfolio preview"
-                          className="w-full h-64 object-cover rounded-lg shadow"
-                        />
-                      </div>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Project Name</Label>
-                          <Input
-                            value={item.projectName}
-                            onChange={(e) => updatePortfolioItem(index, 'projectName', e.target.value)}
-                            placeholder="Modern Living Room in Westlands"
-                          />
-                        </div>
-                        <div>
-                          <Label>Project Type</Label>
-                          <select
-                            value={item.projectType}
-                            onChange={(e) => updatePortfolioItem(index, 'projectType', e.target.value)}
-                            className="w-full px-4 py-2 border rounded-lg"
-                          >
-                            <option value="">Select type</option>
-                            <option value="residential">Residential</option>
-                            <option value="commercial">Commercial</option>
-                            <option value="hospitality">Hospitality</option>
-                            <option value="office">Office</option>
-                            <option value="retail">Retail</option>
-                            <option value="other">Other</option>
-                          </select>
-                        </div>
-                        <div>
-                          <Label>Before or After Photo?</Label>
-                          <div className="flex gap-4 mt-2">
-                            <Button
-                              type="button"
-                              variant={item.beforeAfter === 'before' ? 'default' : 'outline'}
-                              onClick={() => updatePortfolioItem(index, 'beforeAfter', 'before')}
-                            >
-                              Before
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={item.beforeAfter === 'after' ? 'default' : 'outline'}
-                              onClick={() => updatePortfolioItem(index, 'beforeAfter', 'after')}
-                            >
-                              After
+              {formData.portfolioProjects.map((project, index) => (
+                <Card key={index} className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <h4 className="font-medium">Project {index + 1}</h4>
+                    <Button variant="destructive" size="sm" onClick={() => removePortfolioProject(index)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <Label>Project Name</Label>
+                      <Input
+                        value={project.projectName}
+                        onChange={(e) => updatePortfolioProject(index, 'projectName', e.target.value)}
+                        placeholder="Modern Kitchen Renovation"
+                      />
+                    </div>
+                    <div>
+                      <Label>Project Type</Label>
+                      <select
+                        value={project.projectType}
+                        onChange={(e) => updatePortfolioProject(index, 'projectType', e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg"
+                      >
+                        <option value="">Select type</option>
+                        <option value="residential">Residential</option>
+                        <option value="commercial">Commercial</option>
+                        <option value="hospitality">Hospitality</option>
+                        <option value="office">Office</option>
+                        <option value="retail">Retail</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <Label>Project Description</Label>
+                    <Textarea
+                      value={project.description}
+                      onChange={(e) => updatePortfolioProject(index, 'description', e.target.value)}
+                      rows={4}
+                      placeholder="Describe the challenge, your solution, materials used, and client feedback..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Before Image */}
+                    <div>
+                      <Label>Before Image</Label>
+                      <div className="mt-2">
+                        {project.beforeImage ? (
+                          <div>
+                            <img src={project.beforeImage.preview} alt="Before" className="w-full h-64 object-cover rounded-lg mb-3" />
+                            <Button variant="outline" size="sm" onClick={() => {
+                              const updated = [...formData.portfolioProjects];
+                              updated[index].beforeImage = undefined;
+                              setFormData(prev => ({ ...prev, portfolioProjects: updated }));
+                            }}>
+                              Change Image
                             </Button>
                           </div>
-                        </div>
-                        <div>
-                          <Label>Description</Label>
-                          <Textarea
-                            value={item.description}
-                            onChange={(e) => updatePortfolioItem(index, 'description', e.target.value)}
-                            rows={4}
-                            placeholder="Describe the project challenge and your design solution..."
-                          />
-                        </div>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removePortfolioItem(index)}
-                        >
-                          Remove Image
-                        </Button>
+                        ) : (
+                          <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => e.target.files && setBeforeImage(index, e.target.files[0])}
+                              className="hidden"
+                              id={`before-${index}`}
+                            />
+                            <label htmlFor={`before-${index}`} className="cursor-pointer">
+                              <Upload className="mx-auto h-10 w-10 text-gray-400" />
+                              <p className="mt-2 text-sm">Upload Before Photo</p>
+                            </label>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            )}
 
+                    {/* After Image */}
+                    <div>
+                      <Label>After Image</Label>
+                      <div className="mt-2">
+                        {project.afterImage ? (
+                          <div>
+                            <img src={project.afterImage.preview} alt="After" className="w-full h-64 object-cover rounded-lg mb-3" />
+                            <Button variant="outline" size="sm" onClick={() => {
+                              const updated = [...formData.portfolioProjects];
+                              updated[index].afterImage = undefined;
+                              setFormData(prev => ({ ...prev, portfolioProjects: updated }));
+                            }}>
+                              Change Image
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => e.target.files && setAfterImage(index, e.target.files[0])}
+                              className="hidden"
+                              id={`after-${index}`}
+                            />
+                            <label htmlFor={`after-${index}`} className="cursor-pointer">
+                              <Upload className="mx-auto h-10 w-10 text-gray-400" />
+                              <p className="mt-2 text-sm">Upload After Photo</p>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+
+              <Button type="button" onClick={addPortfolioProject} className="w-full">
+                <Plus className="w-5 h-5 mr-2" />
+                Add New Project
+              </Button>
+            </div>
+
+            {/* Social Links */}
             <div className="space-y-4">
-              <Label>Social Media & Website Links (Optional)</Label>
+              <Label>Social Media Links (Optional)</Label>
               <Input
                 value={formData.socialLinks.instagram}
                 onChange={(e) => setFormData(prev => ({
@@ -432,7 +507,7 @@ const DesignerApplicationForm = () => {
                   ...prev,
                   socialLinks: { ...prev.socialLinks, website: e.target.value }
                 }))}
-                placeholder="Personal website URL"
+                placeholder="Website URL"
               />
             </div>
           </div>
