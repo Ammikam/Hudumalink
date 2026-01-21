@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation} from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Upload, ArrowRight, ArrowLeft, Check, Loader2, MapPin, Calendar } from 'lucide-react';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 
 import { Layout } from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,8 @@ const timelines = ['1-2 weeks', '2-4 weeks', '1-2 months', '2-3 months', '3+ mon
 export default function PostProjectPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userId, getToken, isLoaded } = useAuth(); // ← Added getToken here
+  const { userId, getToken, isLoaded } = useAuth();
+  const { user: clerkUser, isLoaded: userLoaded } = useUser();
   
   const prefilled = location.state as {
     roomType?: string;
@@ -57,10 +58,19 @@ export default function PostProjectPage() {
     prefilled?.style ? [prefilled.style] : []
   );
   
-  // Step 3: Contact
+  // Step 3: Contact - ADDED THESE MISSING STATE DECLARATIONS
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+
+  // Auto-fill user data from Clerk
+  useEffect(() => {
+    if (userLoaded && clerkUser) {
+      setName(clerkUser.fullName || `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim());
+      setEmail(clerkUser.primaryEmailAddress?.emailAddress || '');
+      setPhone(clerkUser.primaryPhoneNumber?.phoneNumber || '');
+    }
+  }, [userLoaded, clerkUser]);
 
   const toggleStyle = (style: string) => {
     setSelectedStyles(prev =>
@@ -178,7 +188,7 @@ export default function PostProjectPage() {
   const progress = ((step + 1) / steps.length) * 100;
 
   // Loading state
-  if (!isLoaded) {
+  if (!isLoaded || !userLoaded) {
     return (
       <Layout>
         <div className="flex justify-center items-center min-h-screen">
@@ -489,32 +499,21 @@ export default function PostProjectPage() {
 
                 <div className="grid gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input
-                      id="name"
-                      placeholder="John Kamau"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className={cn('h-12', errors.name && 'border-destructive')}
-                    />
+                    <Label>Full Name (from your account)</Label>
+                    <Input value={name} disabled className="bg-muted" />
                     {errors.name && (
                       <p className="text-sm text-destructive">{errors.name}</p>
                     )}
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="john@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className={cn('h-12', errors.email && 'border-destructive')}
-                    />
+                    <Label>Email (verified)</Label>
+                    <Input value={email} disabled className="bg-muted" />
                     {errors.email && (
                       <p className="text-sm text-destructive">{errors.email}</p>
                     )}
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number *</Label>
                     <Input
