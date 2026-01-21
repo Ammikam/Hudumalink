@@ -1,20 +1,27 @@
-import { Toaster } from "../src/components/ui/toaster";
-import { Toaster as Sonner } from "../src/components/ui/sonner";
-import { TooltipProvider } from "../src/components/ui/tooltip";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from '@clerk/clerk-react';
 
-import HomePage from "../src/pages/Homepage";
+import HomePage from "./pages/Homepage";
 import InspirationPage from "./pages/InspirationPage";
-import DesignersPage from "../src/pages/DesignerPage";
-import DesignerProfilePage from "./pages/DesignerProfilePage";
+import DesignersPage from "./pages/DesignerPage";
+import DesignerProfilePage from "./components/designerpages/DesignerProfilePage";
 import PostProjectPage from "./pages/PostProjectPage";
 import ClientDashboard from "./pages/ClientDashboard";
 import NotFound from "./pages/NotFound";
 import SuccessPage from "./pages/SuccessPage";
 import DesignerDashboard from "./pages/DesignerDashboard";
+import OpenProjectsPage from "@/components/designerpages/OpenProjectsPage"; 
+import InvitesPage from "@/components/designerpages/InvitesPage";
+import ProposalsPage from "@/components/designerpages/ProposalsPage";
+import ActiveProjectsPage from "@/components/designerpages/ActiveProjectsPage";
+import EarningsPage from "@/components/designerpages/EarningsPage";
+
 import { RoleProvider } from '@/contexts/RoleContext';
+import { ProtectedDesignerRoute } from '@/components/designers/ProtectedDesignerRoute';
 
 const queryClient = new QueryClient();
 const publishableKey = "pk_test_aW5maW5pdGUtZ2liYm9uLTcwLmNsZXJrLmFjY291bnRzLmRldiQ";
@@ -26,20 +33,36 @@ const App = () => (
         <Toaster />
         <Sonner />
         <RoleProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/inspiration" element={<InspirationPage />} />
-            <Route path="/designers" element={<DesignersPage />} />
-            <Route path="/designer/:id" element={<DesignerProfilePage />} />
-            <Route path="/post-project" element={<PostProjectPage />} />
-            <Route path="/dashboard/client" element={<ClientDashboard />} />
-            <Route path="/dashboard/designer" element={<DesignerDashboard />} />
-            <Route path="/dashboard/client" element={<ClientDashboard />} />
-            <Route path="/success" element={<SuccessPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/inspiration" element={<InspirationPage />} />
+              <Route path="/designers" element={<DesignersPage />} />
+              <Route path="/designer/:id" element={<DesignerProfilePage />} />
+              <Route path="/post-project" element={<PostProjectPage />} />
+              <Route path="/success" element={<SuccessPage />} />
+
+              {/* Client Dashboard */}
+              <Route path="/dashboard/client" element={<ClientDashboard />} />
+
+              {/* Legacy Designer Dashboard (old path) */}
+              <Route path="/dashboard/designer" element={<DesignerDashboard />} />
+
+              {/* Protected Designer Routes */}
+              <Route element={<ProtectedDesignerRoute />}>
+                <Route path="/designer/open-projects" element={<OpenProjectsPage />} />
+                <Route path="/designer/invites" element={<InvitesPage />} />
+                <Route path="/designer/proposals" element={<ProposalsPage />} />
+                <Route path="/designer/active-projects" element={<ActiveProjectsPage />} />
+                <Route path="/designer/profile" element={<DesignerProfilePage />} />
+               <Route path="/designer/earnings" element={<EarningsPage />} />
+             </Route>
+
+              {/* Catch All */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </RoleProvider>
       </TooltipProvider>
     </QueryClientProvider>
