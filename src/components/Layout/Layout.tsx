@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { MobileNav } from './MobileNav';
-import { WhatsAppButton } from './WhatsAppButton';
+// import { WhatsAppButton } from './WhatsAppButton';
 import { Toaster } from '@/components/ui/toaster';
 
 interface LayoutProps {
@@ -20,7 +20,7 @@ export function Layout({ children, hideFooter = false, hideMobileNav = false }: 
       </main>
       {!hideFooter && <Footer />}
       {!hideMobileNav && <MobileNav />}
-      <WhatsAppButton />
+      {/* <WhatsAppButton /> */}
       <Toaster/>
     </div>
   );
