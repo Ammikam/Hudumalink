@@ -1,21 +1,21 @@
 // src/components/designerpages/OpenProjectsPage.tsx
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
-import { MapPin, Calendar, DollarSign } from 'lucide-react';
+import { MapPin, Calendar, DollarSign, Check } from 'lucide-react';
 
 import { api } from '@/services/api';
 import { Layout } from '@/components/Layout/Layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import ProposalModal from '@/components/designers/SendProposalModal'; 
+import ProposalModal from '@/components/designers/SendProposalModal';
 
 interface Project {
   _id: string;
   title: string;
   description: string;
   location: string;
-  budget: number;        
+  budget: number;
   timeline: string;
   styles: string[];
   photos: string[];
@@ -29,27 +29,44 @@ interface Project {
 export default function OpenProjectsPage() {
   const { getToken } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [sentProposalIds, setSentProposalIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
-  useEffect(() => {
-    const fetchOpenProjects = async () => {
-      try {
-        const token = await getToken();
-        if (!token) return;
+ useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
 
-        const response = await api.getProjects(token);
-        const openProjects = response.filter((p: Project) => p.status === 'open');
-        setProjects(openProjects);
-      } catch (error) {
-        console.error('Failed to fetch open projects:', error);
-      } finally {
-        setLoading(false);
+      // Fetch open projects
+      const allProjects = await api.getProjects(token);
+      const openProjects = allProjects.filter((p: Project) => p.status === 'open');
+      setProjects(openProjects);
+
+      // Fetch my proposals
+      const res = await fetch('http://localhost:5000/api/proposals/my', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.proposals)) {
+        const ids = new Set<string>(
+          data.proposals.map((p: any) => 
+            typeof p.project === 'string' ? p.project : p.project?._id || p.project
+          ).filter(Boolean)
+        );
+        setSentProposalIds(ids);
       }
-    };
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchOpenProjects();
-  }, [getToken]);
+  fetchData();
+}, [getToken]);
 
   const formatCurrency = (amount: number) => `KSh ${amount.toLocaleString()}`;
 
@@ -78,12 +95,18 @@ export default function OpenProjectsPage() {
       }
 
       alert('Proposal sent successfully! 🎉');
-      setSelectedProject(null); // Close modal
+      // Update sent list
+      if (selectedProject) {
+        setSentProposalIds(prev => new Set(prev).add(selectedProject._id));
+      }
+      setSelectedProject(null);
     } catch (error: any) {
       console.error('Proposal error:', error);
-      throw error; // Let modal handle error
+      throw error;
     }
   };
+
+  const hasSentProposal = (projectId: string) => sentProposalIds.has(projectId);
 
   if (loading) {
     return (
@@ -114,65 +137,76 @@ export default function OpenProjectsPage() {
           </Card>
         ) : (
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project) => (
-              <Card key={project._id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                {project.photos.length > 0 && (
-                  <img
-                    src={project.photos[0]}
-                    alt={project.title}
-                    className="w-full h-48 object-cover"
-                  />
-                )}
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2">{project.title}</h3>
-                  <p className="text-muted-foreground mb-4 line-clamp-3">
-                    {project.description}
-                  </p>
+            {projects.map((project) => {
+              const alreadySent = hasSentProposal(project._id);
 
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="w-4 h-4" />
-                      {project.location}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <DollarSign className="w-4 h-4" />
-                      {formatCurrency(project.budget)}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4" />
-                      {project.timeline}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {project.styles.map((style) => (
-                      <Badge key={style} variant="secondary">
-                        {style}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground">
-                      Posted by <span className="font-medium">{project.client.name}</span>
+              return (
+                <Card key={project._id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                  {project.photos.length > 0 && (
+                    <img
+                      src={project.photos[0]}
+                      alt={project.title}
+                      className="w-full h-48 object-cover"
+                    />
+                  )}
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold mb-2">{project.title}</h3>
+                    <p className="text-muted-foreground mb-4 line-clamp-3">
+                      {project.description}
                     </p>
-                    <Button 
-                      size="sm" 
-                      onClick={() => {
-                        console.log('Selected project:', project);
-                        setSelectedProject(project);
-                      }}
-                    >
-                      Send Proposal
-                    </Button>
+
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4" />
+                        {project.location}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <DollarSign className="w-4 h-4" />
+                        {formatCurrency(project.budget)}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="w-4 h-4" />
+                        {project.timeline}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {project.styles.map((style) => (
+                        <Badge key={style} variant="secondary">
+                          {style}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-muted-foreground">
+                        Posted by <span className="font-medium">{project.client.name}</span>
+                      </p>
+                      <Button
+                        size="sm"
+                        variant={alreadySent ? "secondary" : "default"}
+                        disabled={alreadySent}
+                        onClick={() => !alreadySent && setSelectedProject(project)}
+                      >
+                        {alreadySent ? (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Proposal Sent
+                          </>
+                        ) : (
+                          'Send Proposal'
+                        )}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
 
+      {/* Send Proposal Modal */}
       {selectedProject && (
         <ProposalModal
           project={{
