@@ -13,9 +13,6 @@ import {
   DollarSign,
   MapPin,
   Calendar,
-  Eye,
-  MessageSquare,
-  ArrowRight,
   X,
   Check,
 } from 'lucide-react';
@@ -74,6 +71,7 @@ export default function ClientDashboard() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [acceptingProposal, setAcceptingProposal] = useState<string | null>(null);
+  const [rejectingProposal, setRejectingProposal] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !userId) return;
@@ -171,6 +169,37 @@ export default function ClientDashboard() {
       alert('Failed to hire designer');
     } finally {
       setAcceptingProposal(null);
+    }
+  };
+
+  const handleRejectProposal = async (proposalId: string) => {
+    const reason = prompt('Reason for rejection (optional):');
+    
+    setRejectingProposal(proposalId);
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/reject`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason }),
+      });
+
+      if (res.ok) {
+        alert('Proposal rejected');
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to reject proposal');
+      }
+    } catch (error) {
+      alert('Failed to reject proposal');
+    } finally {
+      setRejectingProposal(null);
     }
   };
 
@@ -425,20 +454,35 @@ export default function ClientDashboard() {
                           </div>
                         </div>
 
-                        <Button
-                          size="lg"
-                          onClick={() => handleAcceptProposal(proposal._id)}
-                          disabled={acceptingProposal === proposal._id}
-                        >
-                          {acceptingProposal === proposal._id ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <>
-                              <Check className="w-5 h-5 mr-2" />
-                              Hire This Designer
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex gap-3">
+                          <Button
+                            variant="destructive"
+                            size="lg"
+                            onClick={() => handleRejectProposal(proposal._id)}
+                            disabled={rejectingProposal === proposal._id}
+                          >
+                            {rejectingProposal === proposal._id ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              'Reject'
+                            )}
+                          </Button>
+
+                          <Button
+                            size="lg"
+                            onClick={() => handleAcceptProposal(proposal._id)}
+                            disabled={acceptingProposal === proposal._id}
+                          >
+                            {acceptingProposal === proposal._id ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="w-5 h-5 mr-2" />
+                                Hire This Designer
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </Card>
                   ))}
