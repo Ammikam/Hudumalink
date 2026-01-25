@@ -51,6 +51,7 @@ interface Project {
   photos: string[];
   status: 'open' | 'in_progress' | 'completed';
   proposals: Proposal[];
+  designer?: Designer | null;
   createdAt: string;
 }
 
@@ -85,6 +86,7 @@ export default function ClientDashboard() {
         if (!token) throw new Error('Authentication failed');
 
         const rawProjects = await api.getUserProjects(token);
+        console.log('Raw projects:', rawProjects); // DEBUG
 
         // Fetch proposals for each project
         const projectsWithProposals = await Promise.all(
@@ -94,18 +96,22 @@ export default function ClientDashboard() {
                 headers: { Authorization: `Bearer ${token}` },
               });
               const data = await res.json();
+              console.log(`Proposals for ${proj._id}:`, data); // DEBUG
               return {
                 ...proj,
                 proposals: data.success ? data.proposals : [],
               };
-            } catch {
+            } catch (err) {
+              console.error(`Error fetching proposals for ${proj._id}:`, err); // DEBUG
               return { ...proj, proposals: [] };
             }
           })
         );
 
+        console.log('Projects with proposals:', projectsWithProposals); // DEBUG
         setProjects(projectsWithProposals);
       } catch (err: any) {
+        console.error('Error fetching projects:', err); // DEBUG
         setError(err.message || 'Failed to load projects');
       } finally {
         setLoading(false);
@@ -120,7 +126,10 @@ export default function ClientDashboard() {
     activeProjects: projects.filter(p => p.status === 'open' || p.status === 'in_progress').length,
     completedProjects: projects.filter(p => p.status === 'completed').length,
     totalSpent: projects.reduce((sum, p) => sum + p.budget, 0),
-    proposalsReceived: projects.reduce((sum, p) => sum + p.proposals.length, 0),
+    proposalsReceived: projects.reduce((sum, p) => 
+      sum + p.proposals.filter(prop => prop.status === 'pending').length, 
+      0
+    ),
   }), [projects]);
 
   const filteredProjects = useMemo(() => {
@@ -145,6 +154,8 @@ export default function ClientDashboard() {
   const handleAcceptProposal = async (proposalId: string) => {
     if (!selectedProject) return;
 
+    console.log('Accepting proposal:', proposalId); // DEBUG
+
     setAcceptingProposal(proposalId);
     try {
       const token = await getToken();
@@ -158,14 +169,17 @@ export default function ClientDashboard() {
         },
       });
 
+      const data = await res.json();
+      console.log('Accept proposal response:', data); // DEBUG
+
       if (res.ok) {
-        alert('Designer hired successfully! 🎉');
-        window.location.reload(); // Refresh to update status
+        alert('Designer hired! Other proposals rejected automatically.');
+        window.location.reload(); 
       } else {
-        const data = await res.json();
         alert(data.error || 'Failed to hire designer');
       }
     } catch (error) {
+      console.error('Error accepting proposal:', error); // DEBUG
       alert('Failed to hire designer');
     } finally {
       setAcceptingProposal(null);
@@ -175,6 +189,8 @@ export default function ClientDashboard() {
   const handleRejectProposal = async (proposalId: string) => {
     const reason = prompt('Reason for rejection (optional):');
     
+    console.log('Rejecting proposal:', proposalId, 'Reason:', reason); // DEBUG
+
     setRejectingProposal(proposalId);
     try {
       const token = await getToken();
@@ -189,14 +205,17 @@ export default function ClientDashboard() {
         body: JSON.stringify({ reason }),
       });
 
+      const data = await res.json();
+      console.log('Reject proposal response:', data); // DEBUG
+
       if (res.ok) {
         alert('Proposal rejected');
         window.location.reload();
       } else {
-        const data = await res.json();
         alert(data.error || 'Failed to reject proposal');
       }
     } catch (error) {
+      console.error('Error rejecting proposal:', error); // DEBUG
       alert('Failed to reject proposal');
     } finally {
       setRejectingProposal(null);
@@ -330,8 +349,9 @@ export default function ClientDashboard() {
                 {filteredProjects.map((project) => (
                   <Card key={project._id} className="overflow-hidden">
                     <div className="flex flex-col lg:flex-row">
+                      {/* Project Image */}
                       <div className="lg:w-80 h-64 lg:h-auto relative">
-                        {project.photos[0] ? (
+                        {project.photos && project.photos.length > 0 && project.photos[0] ? (
                           <img src={project.photos[0]} alt={project.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -340,6 +360,7 @@ export default function ClientDashboard() {
                         )}
                       </div>
 
+                      {/* Project Details */}
                       <div className="flex-1 p-6 lg:p-8">
                         <div className="flex justify-between items-start mb-4">
                           <div>
@@ -371,27 +392,65 @@ export default function ClientDashboard() {
                         </div>
 
                         <div className="flex flex-wrap gap-2 mb-6">
-                          {project.styles.map((style) => (
+                          {project.styles && project.styles.length > 0 && project.styles.map((style) => (
                             <Badge key={style} variant="secondary">
                               {style}
                             </Badge>
                           ))}
                         </div>
 
+                        {/* HIRED DESIGNER SECTION */}
+                        {project.designer && project.designer.name && (
+                          <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 rounded-full bg-gray-200 border-2 border-dashed overflow-hidden">
+                                {project.designer.avatar ? (
+                                  <img src={project.designer.avatar} alt={project.designer.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-500">
+                                    {project.designer.name?.charAt(0)?.toUpperCase() || 'D'}
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm text-green-700 font-medium">Hired Designer</p>
+                                <p className="text-lg font-bold text-green-900">{project.designer.name}</p>
+                                <p className="text-sm text-green-800">Project is now in progress</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Actions */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-6 text-sm">
-                            <span className="flex items-center gap-2">
-                              <Users className="w-4 h-4" />
-                              {project.proposals.length} Proposal{project.proposals.length !== 1 ? 's' : ''}
-                            </span>
+                            {project.status === 'open' ? (
+                              <span className="flex items-center gap-2">
+                                <Users className="w-4 h-4" />
+                                {project.proposals?.filter(p => p.status === 'pending').length || 0} Pending Proposal{project.proposals?.filter(p => p.status === 'pending').length !== 1 ? 's' : ''}
+                              </span>
+                            ) : project.status === 'in_progress' ? (
+                              <span className="flex items-center gap-2 text-blue-600 font-medium">
+                                <CheckCircle2 className="w-4 h-4" />
+                                Designer Hired
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2 text-gray-600 font-medium">
+                                <CheckCircle2 className="w-4 h-4" />
+                                Completed
+                              </span>
+                            )}
                           </div>
                           <div className="flex gap-3">
                             <Button variant="outline" asChild>
                               <Link to={`/projects/${project._id}`}>View Details</Link>
                             </Button>
-                            {project.proposals.length > 0 && (
-                              <Button onClick={() => setSelectedProject(project)}>
-                                View Proposals ({project.proposals.length})
+                            {project.status === 'open' && project.proposals?.some(p => p.status === 'pending') && (
+                              <Button onClick={() => {
+                                console.log('Opening proposals modal for:', project); // DEBUG
+                                setSelectedProject(project);
+                              }}>
+                                View Proposals ({project.proposals.filter(p => p.status === 'pending').length})
                               </Button>
                             )}
                           </div>
@@ -410,20 +469,20 @@ export default function ClientDashboard() {
       {selectedProject && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8">
-            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
+            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center rounded-t-2xl">
               <h2 className="text-2xl font-bold">
                 Proposals for "{selectedProject.title}"
               </h2>
               <button
                 onClick={() => setSelectedProject(null)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="p-2 hover:bg-gray-100 rounded-lg transition"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
             <div className="p-8">
-              {selectedProject.proposals.length === 0 ? (
+              {!selectedProject.proposals || selectedProject.proposals.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <p className="text-xl">No proposals yet</p>
@@ -435,15 +494,30 @@ export default function ClientDashboard() {
                 <div className="space-y-6">
                   {selectedProject.proposals.map((proposal) => (
                     <Card key={proposal._id} className="p-6">
-                      <div className="flex justify-between items-start gap-6">
+                      <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
                         <div className="flex-1">
                           <div className="flex items-center gap-4 mb-4">
-                            <div className="w-16 h-16 rounded-full bg-gray-200 border-2 border-dashed" />
+                            <div className="w-16 h-16 rounded-full bg-gray-200 border-2 border-dashed overflow-hidden flex items-center justify-center">
+                              {proposal.designer?.avatar ? (
+                                <img src={proposal.designer.avatar} alt={proposal.designer.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-2xl font-bold text-gray-500">
+                                  {proposal.designer?.name?.charAt(0).toUpperCase() || '?'}
+                                </span>
+                              )}
+                            </div>
                             <div>
-                              <h4 className="text-xl font-bold">{proposal.designer.name}</h4>
+                              <h4 className="text-xl font-bold">{proposal.designer?.name || 'Unknown Designer'}</h4>
+                              <Badge className={
+                                proposal.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                proposal.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }>
+                                {proposal.status}
+                              </Badge>
                             </div>
                           </div>
-                          <p className="text-gray-700 mb-6">{proposal.message}</p>
+                          <p className="text-gray-700 mb-6 whitespace-pre-wrap">{proposal.message}</p>
                           <div className="grid grid-cols-2 gap-6 text-sm">
                             <div>
                               <strong>Proposed Price:</strong> KSh {proposal.price.toLocaleString()}
@@ -454,35 +528,38 @@ export default function ClientDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex gap-3">
-                          <Button
-                            variant="destructive"
-                            size="lg"
-                            onClick={() => handleRejectProposal(proposal._id)}
-                            disabled={rejectingProposal === proposal._id}
-                          >
-                            {rejectingProposal === proposal._id ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                              'Reject'
-                            )}
-                          </Button>
+                        {/* Only show action buttons for pending proposals */}
+                        {proposal.status === 'pending' && (
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            <Button
+                              variant="destructive"
+                              size="lg"
+                              onClick={() => handleRejectProposal(proposal._id)}
+                              disabled={rejectingProposal === proposal._id}
+                            >
+                              {rejectingProposal === proposal._id ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                'Reject'
+                              )}
+                            </Button>
 
-                          <Button
-                            size="lg"
-                            onClick={() => handleAcceptProposal(proposal._id)}
-                            disabled={acceptingProposal === proposal._id}
-                          >
-                            {acceptingProposal === proposal._id ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                              <>
-                                <Check className="w-5 h-5 mr-2" />
-                                Hire This Designer
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                            <Button
+                              size="lg"
+                              onClick={() => handleAcceptProposal(proposal._id)}
+                              disabled={acceptingProposal === proposal._id}
+                            >
+                              {acceptingProposal === proposal._id ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                <>
+                                  <Check className="w-5 h-5 mr-2" />
+                                  Hire Designer
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </Card>
                   ))}
