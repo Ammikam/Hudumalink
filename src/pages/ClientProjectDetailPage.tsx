@@ -2,19 +2,16 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
-import { io } from 'socket.io-client';
 import { Layout } from '@/components/Layout/Layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProjectChat } from '@/components/chat/ProjectChat';
 import { 
-  Send, 
   Loader2, 
   ArrowLeft, 
   Star, 
@@ -24,15 +21,6 @@ import {
   MessageSquare,
   Image as ImageIcon
 } from 'lucide-react';
-
-const socket = io('http://localhost:5000', { autoConnect: false });
-
-interface Message {
-  _id: string;
-  sender: { _id: string; name: string; avatar?: string };
-  message: string;
-  createdAt: string;
-}
 
 interface Designer {
   _id: string;
@@ -64,22 +52,18 @@ export default function ProjectDetailPage() {
 
   // State
   const [project, setProject] = useState<Project | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [socketConnected, setSocketConnected] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
 
-  // Fetch project and setup socket
+  // Fetch project
   useEffect(() => {
     if (!isLoaded || !userId) return;
 
-    const init = async () => {
+    const fetchProject = async () => {
       try {
         const token = await getToken();
         if (!token) throw new Error('No token');
@@ -91,51 +75,20 @@ export default function ProjectDetailPage() {
 
         if (data.success) {
           setProject(data.project);
+        } else {
+          console.error('Failed to load project:', data.error);
         }
       } catch (err) {
         console.error('Error loading project:', err);
       } finally {
         setLoading(false);
       }
-
-      socket.connect();
-      socket.emit('join_project', id);
-
-      socket.on('connect', () => {
-        setSocketConnected(true);
-        socket.emit('load_messages', id);
-      });
-
-      socket.on('messages_loaded', (msgs: Message[]) => setMessages(msgs));
-      socket.on('new_message', (msg: Message) => setMessages(prev => [...prev, msg]));
-      socket.on('disconnect', () => setSocketConnected(false));
     };
 
-    init();
-
-    return () => {
-      socket.off('messages_loaded');
-      socket.off('new_message');
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.disconnect();
-    };
+    fetchProject();
   }, [id, userId, isLoaded, getToken]);
 
   // Handlers
-  const sendMessage = () => {
-    if (!newMessage.trim() || !userId || !socketConnected) return;
-
-    setSending(true);
-    socket.emit('send_message', {
-      projectId: id,
-      senderId: userId,
-      message: newMessage.trim(),
-    });
-    setNewMessage('');
-    setSending(false);
-  };
-
   const handleMarkComplete = async () => {
     if (!confirm('Mark this project as complete? This will end the collaboration.')) return;
 
@@ -153,8 +106,11 @@ export default function ProjectDetailPage() {
         alert('Project marked as complete!');
         setShowReview(true);
         setActiveTab('review');
+      } else {
+        alert('Failed to complete project');
       }
     } catch (error) {
+      console.error('Error completing project:', error);
       alert('Failed to complete project');
     }
   };
@@ -185,21 +141,15 @@ export default function ProjectDetailPage() {
       if (res.ok) {
         alert('Thank you for your review!');
         window.location.reload();
+      } else {
+        alert('Failed to submit review');
       }
     } catch (error) {
+      console.error('Error submitting review:', error);
       alert('Failed to submit review');
     } finally {
       setSubmittingReview(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-KE', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-    });
   };
 
   const getStatusBadge = () => {
@@ -306,9 +256,6 @@ export default function ProjectDetailPage() {
                   <TabsTrigger value="chat">
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Chat
-                    {messages.length > 0 && (
-                      <Badge variant="secondary" className="ml-2">{messages.length}</Badge>
-                    )}
                   </TabsTrigger>
                   {(project.status === 'in_progress' || showReview) && (
                     <TabsTrigger value="review">
@@ -372,90 +319,7 @@ export default function ProjectDetailPage() {
 
                 {/* Chat Tab */}
                 <TabsContent value="chat">
-                  <Card className="h-[600px] flex flex-col">
-                    <div className="p-4 border-b bg-gradient-to-r from-primary/5 to-primary/10">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold">Project Chat</h3>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-gray-400'} animate-pulse`} />
-                          <span className="text-xs text-muted-foreground">
-                            {socketConnected ? 'Online' : 'Connecting...'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <ScrollArea className="flex-1 p-4">
-                      <div className="space-y-4">
-                        {messages.length === 0 ? (
-                          <div className="text-center py-12">
-                            <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                            <p className="text-muted-foreground">No messages yet</p>
-                            <p className="text-sm text-muted-foreground mt-2">Start the conversation!</p>
-                          </div>
-                        ) : (
-                          messages.map((msg) => (
-                            <div
-                              key={msg._id}
-                              className={`flex ${msg.sender._id === userId ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div className={`flex gap-3 max-w-[70%]`}>
-                                {msg.sender._id !== userId && (
-                                  <Avatar className="w-8 h-8 flex-shrink-0">
-                                    <AvatarImage src={msg.sender.avatar} />
-                                    <AvatarFallback className="text-xs">
-                                      {msg.sender.name?.[0]}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                )}
-                                <div
-                                  className={`px-4 py-3 rounded-2xl ${
-                                    msg.sender._id === userId
-                                      ? 'bg-primary text-primary-foreground rounded-br-none'
-                                      : 'bg-muted rounded-bl-none'
-                                  }`}
-                                >
-                                  <p className="font-medium text-xs mb-1 opacity-80">{msg.sender.name}</p>
-                                  <p className="whitespace-pre-wrap">{msg.message}</p>
-                                  <p className="text-xs opacity-60 mt-1">
-                                    {formatDate(msg.createdAt)}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </ScrollArea>
-
-                    <div className="p-4 border-t">
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          sendMessage();
-                        }}
-                        className="flex gap-2"
-                      >
-                        <Input
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          placeholder="Type your message..."
-                          disabled={sending || !socketConnected}
-                        />
-                        <Button
-                          type="submit"
-                          disabled={sending || !newMessage.trim() || !socketConnected}
-                          size="icon"
-                        >
-                          {sending ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <Send className="w-5 h-5" />
-                          )}
-                        </Button>
-                      </form>
-                    </div>
-                  </Card>
+                  <ProjectChat projectId={id!} />
                 </TabsContent>
 
                 {/* Review Tab */}
