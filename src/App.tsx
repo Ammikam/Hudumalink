@@ -21,7 +21,8 @@ import InvitesPage from "@/pages/designerpages/InvitesPage";
 import ProposalsPage from "@/pages/designerpages/ProposalPage";
 import ActiveProjectsPage from "@/pages/designerpages/ActiveProjectsPage";
 import EarningsPage from "@/pages/designerpages/EarningsPage";
-import ProjectDetailPage from "./pages/designerpages/ProjectDetailPage";
+import ProjectDetailPage from "./pages/ClientProjectDetailPage";
+import DesignerProjectDetailPage from "./pages/designerpages/DesignerProjectDetailPage";
 
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ const App = () => (
                 <Route path="/designer/profile" element={<DesignerProfilePage />} />
                <Route path="/designer/earnings" element={<EarningsPage />} />
                <Route path="/projects/:id" element={<ProjectDetailPage />} />
+               <Route path="/designer/projects/:id" element={<DesignerProjectDetailPage />} />
              </Route>
 
               {/* Catch All */}
