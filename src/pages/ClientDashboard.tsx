@@ -97,6 +97,7 @@ export default function ClientDashboard() {
               });
               const data = await res.json();
               console.log(`Proposals for ${proj._id}:`, data); // DEBUG
+              console.log('Single project before proposals:', proj);
               return {
                 ...proj,
                 proposals: data.success ? data.proposals : [],

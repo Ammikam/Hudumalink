@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ClerkProvider } from '@clerk/clerk-react';
+import { RoleProvider } from '@/contexts/RoleContext';
+import { ProtectedDesignerRoute } from '@/components/designers/ProtectedDesignerRoute';
 
 import HomePage from "./pages/Homepage";
 import InspirationPage from "./pages/InspirationPage";
@@ -19,9 +21,8 @@ import InvitesPage from "@/pages/designerpages/InvitesPage";
 import ProposalsPage from "@/pages/designerpages/ProposalPage";
 import ActiveProjectsPage from "@/pages/designerpages/ActiveProjectsPage";
 import EarningsPage from "@/pages/designerpages/EarningsPage";
+import ProjectDetailPage from "./pages/designerpages/ProjectDetailPage";
 
-import { RoleProvider } from '@/contexts/RoleContext';
-import { ProtectedDesignerRoute } from '@/components/designers/ProtectedDesignerRoute';
 
 const queryClient = new QueryClient();
 const publishableKey = "pk_test_aW5maW5pdGUtZ2liYm9uLTcwLmNsZXJrLmFjY291bnRzLmRldiQ";
@@ -57,6 +58,7 @@ const App = () => (
                 <Route path="/designer/active-projects" element={<ActiveProjectsPage />} />
                 <Route path="/designer/profile" element={<DesignerProfilePage />} />
                <Route path="/designer/earnings" element={<EarningsPage />} />
+               <Route path="/projects/:id" element={<ProjectDetailPage />} />
              </Route>
 
               {/* Catch All */}
