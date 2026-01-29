@@ -33,40 +33,39 @@ export default function OpenProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
- useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const token = await getToken();
-      if (!token) return;
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
 
-      // Fetch open projects
-      const allProjects = await api.getProjects(token);
-      const openProjects = allProjects.filter((p: Project) => p.status === 'open');
-      setProjects(openProjects);
+        // Fetch ALL projects (not just user projects)
+        const openProjects = await api.getOpenProjects(token);
+setProjects(openProjects);
 
-      // Fetch my proposals
-      const res = await fetch('http://localhost:5000/api/proposals/my', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+        // Fetch my sent proposals to disable buttons
+        const res = await fetch('http://localhost:5000/api/proposals/my', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
 
-      if (data.success && Array.isArray(data.proposals)) {
-        const ids = new Set<string>(
-          data.proposals.map((p: any) => 
-            typeof p.project === 'string' ? p.project : p.project?._id || p.project
-          ).filter(Boolean)
-        );
-        setSentProposalIds(ids);
+        if (data.success && Array.isArray(data.proposals)) {
+          const ids = new Set<string>(
+            data.proposals.map((p: any) => 
+              typeof p.project === 'string' ? p.project : p.project?._id || p.project
+            ).filter(Boolean)
+          );
+          setSentProposalIds(ids);
+        }
+      } catch (error) {
+        console.error('Failed to fetch open projects or proposals:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  fetchData();
-}, [getToken]);
+    fetchData();
+  }, [getToken]);
 
   const formatCurrency = (amount: number) => `KSh ${amount.toLocaleString()}`;
 
@@ -95,14 +94,18 @@ export default function OpenProjectsPage() {
       }
 
       alert('Proposal sent successfully! 🎉');
-      // Update sent list
+      // Update sent list immediately
       if (selectedProject) {
-        setSentProposalIds(prev => new Set(prev).add(selectedProject._id));
+        setSentProposalIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(selectedProject._id);
+          return newSet;
+        });
       }
       setSelectedProject(null);
     } catch (error: any) {
       console.error('Proposal error:', error);
-      throw error;
+      alert(error.message || 'Failed to send proposal');
     }
   };
 

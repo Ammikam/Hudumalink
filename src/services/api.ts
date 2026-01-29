@@ -11,6 +11,15 @@ export const api = {
     throw new Error('Failed to fetch designers');
   },
 
+  getOpenProjects: async (token?: string) => {
+  const res = await fetch(`${API_URL}/projects/open`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error('Failed to fetch open projects');
+  return data;
+},
+
   // Get all projects
   getProjects: async (token?: string) => {
     const res = await fetch(`${API_URL}/projects`, {

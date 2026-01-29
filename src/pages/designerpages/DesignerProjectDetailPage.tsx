@@ -12,7 +12,6 @@ import { ProjectChat } from '@/components/chat/ProjectChat';
 import { 
   Loader2,
   ArrowLeft,
-  User,
   DollarSign,
   Clock,
   Image as ImageIcon,
@@ -263,7 +262,7 @@ export default function DesignerProjectDetailPage() {
 
                 {/* Chat Tab */}
                 <TabsContent value="chat">
-                  <ProjectChat projectId={id!} />
+                  <ProjectChat projectId={project._id} />
                 </TabsContent>
               </Tabs>
             </div>
