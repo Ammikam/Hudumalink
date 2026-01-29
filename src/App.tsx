@@ -47,6 +47,7 @@ const App = () => (
 
               {/* Client Dashboard */}
               <Route path="/dashboard/client" element={<ClientDashboard />} />
+              <Route path="/projects/:id" element={<ProjectDetailPage />} />
 
               {/* Legacy Designer Dashboard (old path) */}
               <Route path="/dashboard/designer" element={<DesignerDashboard />} />
@@ -59,7 +60,6 @@ const App = () => (
                 <Route path="/designer/active-projects" element={<ActiveProjectsPage />} />
                 <Route path="/designer/profile" element={<DesignerProfilePage />} />
                <Route path="/designer/earnings" element={<EarningsPage />} />
-               <Route path="/projects/:id" element={<ProjectDetailPage />} />
                <Route path="/designer/projects/:id" element={<DesignerProjectDetailPage />} />
              </Route>
 
