@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { SignedIn } from '@clerk/clerk-react';
 import {
   Loader2,
   Plus,
@@ -442,19 +443,19 @@ export default function ClientDashboard() {
                               </span>
                             )}
                           </div>
-                          <div className="flex gap-3">
-                            <Button variant="outline" asChild>
-                              <Link to={`/projects/${project._id}`}>View Details</Link>
-                            </Button>
-                            {project.status === 'open' && project.proposals?.some(p => p.status === 'pending') && (
-                              <Button onClick={() => {
-                                console.log('Opening proposals modal for:', project); // DEBUG
-                                setSelectedProject(project);
-                              }}>
-                                View Proposals ({project.proposals.filter(p => p.status === 'pending').length})
-                              </Button>
-                            )}
-                          </div>
+                         <div className="flex gap-3">
+  <SignedIn>
+    <Button variant="outline" asChild>
+      <Link to={`/projects/${project._id}`}>View Details</Link>
+    </Button>
+  </SignedIn>
+
+  {project.status === 'open' && project.proposals?.some(p => p.status === 'pending') && (
+    <Button onClick={() => setSelectedProject(project)}>
+      View Proposals ({project.proposals.filter(p => p.status === 'pending').length})
+    </Button>
+  )}
+</div>
                         </div>
                       </div>
                     </div>

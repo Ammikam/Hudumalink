@@ -319,7 +319,7 @@ export default function ProjectDetailPage() {
 
                 {/* Chat Tab */}
                 <TabsContent value="chat">
-                  <ProjectChat projectId={id!} />
+                  <ProjectChat projectId={project._id} />
                 </TabsContent>
 
                 {/* Review Tab */}
