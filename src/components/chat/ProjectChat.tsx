@@ -42,24 +42,45 @@ export function ProjectChat({
   showHeader = true,
   className = ''
 }: ProjectChatProps) {
-  const { userId } = useAuth();
+  const { userId: clerkUserId, getToken } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [mongoUserId, setMongoUserId] = useState<string | null>(null);
 
+  // Fetch MongoDB _id using Clerk ID — no extra imports!
   useEffect(() => {
-    if (!userId || !projectId) return;
+    const fetchMongoId = async () => {
+      if (!clerkUserId) return;
+
+      try {
+        const token = await getToken();
+        const res = await fetch(`http://localhost:5000/api/projects/mongo-id/${clerkUserId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+
+        if (data.success && data.mongoId) {
+          setMongoUserId(data.mongoId);
+        }
+      } catch (err) {
+        console.error('Failed to fetch MongoDB user ID');
+      }
+    };
+
+    fetchMongoId();
+  }, [clerkUserId, getToken]);
+
+  // Socket setup — only when we have projectId and mongoUserId
+  useEffect(() => {
+    if (!projectId || !mongoUserId) return;
 
     const socketInstance = getSocket();
-    
-    // Connect and join room
     socketInstance.connect();
     socketInstance.emit('join_project', projectId);
 
-    // Event handlers
     const handleConnect = () => {
-      console.log('Chat socket connected');
       setConnected(true);
       socketInstance.emit('load_messages', projectId);
     };
@@ -73,42 +94,32 @@ export function ProjectChat({
     };
 
     const handleDisconnect = () => {
-      console.log('Chat socket disconnected');
       setConnected(false);
     };
 
-    // Attach listeners
     socketInstance.on('connect', handleConnect);
     socketInstance.on('messages_loaded', handleMessagesLoaded);
     socketInstance.on('new_message', handleNewMessage);
     socketInstance.on('disconnect', handleDisconnect);
 
-    // Cleanup
     return () => {
       socketInstance.off('connect', handleConnect);
       socketInstance.off('messages_loaded', handleMessagesLoaded);
       socketInstance.off('new_message', handleNewMessage);
       socketInstance.off('disconnect', handleDisconnect);
-      
-      // Don't disconnect socket if other components might be using it
-      // Only disconnect when component unmounts completely
-      if (socketInstance.connected) {
-        socketInstance.emit('leave_project', projectId);
-      }
+      socketInstance.emit('leave_project', projectId);
     };
-  }, [projectId, userId]);
+  }, [projectId, mongoUserId]);
 
   const sendMessage = (e?: React.FormEvent) => {
     e?.preventDefault();
     
-    if (!newMessage.trim() || !userId || !connected) return;
+    if (!newMessage.trim() || !mongoUserId || !connected) return;
 
-    const socketInstance = getSocket();
-    
     setSending(true);
-    socketInstance.emit('send_message', {
+    getSocket().emit('send_message', {
       projectId,
-      senderId: userId,
+      senderId: mongoUserId, // ← Now using correct MongoDB _id
       message: newMessage.trim(),
     });
     setNewMessage('');
@@ -154,7 +165,7 @@ export function ProjectChat({
             </div>
           ) : (
             messages.map((msg) => {
-              const isOwnMessage = msg.sender._id === userId;
+              const isOwnMessage = msg.sender._id === mongoUserId;
               
               return (
                 <div
@@ -198,13 +209,13 @@ export function ProjectChat({
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
-            disabled={sending || !connected}
+            placeholder={mongoUserId ? "Type a message..." : "Loading user..."}
+            disabled={sending || !connected || !mongoUserId}
             className="flex-1"
           />
           <Button
             type="submit"
-            disabled={sending || !newMessage.trim() || !connected}
+            disabled={sending || !newMessage.trim() || !mongoUserId}
             size="icon"
           >
             {sending ? (
@@ -219,7 +230,7 @@ export function ProjectChat({
   );
 }
 
-// Export function to disconnect socket when needed
+// Optional: Clean disconnect
 export const disconnectChatSocket = () => {
   if (socket && socket.connected) {
     socket.disconnect();
