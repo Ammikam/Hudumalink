@@ -1,6 +1,6 @@
-// src/pages/ProjectDetailPage.tsx
+// src/pages/ProjectDetailPage.tsx - IMPROVED VERSION
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { Layout } from '@/components/Layout/Layout';
 import { Card } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ProjectChat } from '@/components/chat/ProjectChat';
 import { 
   Loader2, 
@@ -19,8 +20,12 @@ import {
   Clock,
   DollarSign,
   MessageSquare,
-  Image as ImageIcon
+  Image as ImageIcon,
+  AlertCircle,
+  Trophy,
+  Sparkles
 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Designer {
   _id: string;
@@ -46,52 +51,84 @@ interface Project {
   };
 }
 
+interface Review {
+  _id: string;
+  rating: number;
+  review: string;
+  createdAt: string;
+}
+
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { userId, getToken, isLoaded } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   // State
   const [project, setProject] = useState<Project | null>(null);
+  const [existingReview, setExistingReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
   const [showReview, setShowReview] = useState(false);
   const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [completingProject, setCompletingProject] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
 
-  // Fetch project
+  // Fetch project and existing review
   useEffect(() => {
     if (!isLoaded || !userId) return;
 
-    const fetchProject = async () => {
+    const fetchData = async () => {
       try {
         const token = await getToken();
         if (!token) throw new Error('No token');
 
-        const res = await fetch(`http://localhost:5000/api/projects/${id}`, {
+        // Fetch project
+        const projectRes = await fetch(`http://localhost:5000/api/projects/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
+        const projectData = await projectRes.json();
 
-        if (data.success) {
-          setProject(data.project);
-        } else {
-          console.error('Failed to load project:', data.error);
+        if (projectData.success) {
+          setProject(projectData.project);
+
+          // If project is completed, check for existing review
+          if (projectData.project.status === 'completed') {
+            const reviewRes = await fetch(`http://localhost:5000/api/reviews/project/${id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const reviewData = await reviewRes.json();
+
+            if (reviewData.success && reviewData.review) {
+              setExistingReview(reviewData.review);
+            } else {
+              // No review yet, show review form
+              setShowReview(true);
+            }
+          }
         }
       } catch (err) {
-        console.error('Error loading project:', err);
+        console.error('Error loading data:', err);
+        toast({
+          title: "Error",
+          description: "Failed to load project details",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProject();
+    fetchData();
   }, [id, userId, isLoaded, getToken]);
 
   // Handlers
   const handleMarkComplete = async () => {
-    if (!confirm('Mark this project as complete? This will end the collaboration.')) return;
+    if (!window.confirm('Mark this project as complete? This action cannot be undone.')) return;
 
+    setCompletingProject(true);
     try {
       const token = await getToken();
       const res = await fetch(`http://localhost:5000/api/projects/${id}/complete`, {
@@ -102,22 +139,42 @@ export default function ProjectDetailPage() {
         },
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        alert('Project marked as complete!');
+        toast({
+          title: "Success!",
+          description: "Project marked as complete. Please leave a review for your designer.",
+        });
+        setProject(prev => prev ? { ...prev, status: 'completed' } : null);
         setShowReview(true);
         setActiveTab('review');
       } else {
-        alert('Failed to complete project');
+        toast({
+          title: "Error",
+          description: data.error || 'Failed to complete project',
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error completing project:', error);
-      alert('Failed to complete project');
+      toast({
+        title: "Error",
+        description: "Failed to complete project. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCompletingProject(false);
     }
   };
 
   const handleSubmitReview = async () => {
     if (rating === 0) {
-      alert('Please give a star rating');
+      toast({
+        title: "Rating Required",
+        description: "Please select a star rating before submitting.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -138,18 +195,46 @@ export default function ProjectDetailPage() {
         }),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        alert('Thank you for your review!');
-        window.location.reload();
+        toast({
+          title: "Thank you!",
+          description: "Your review has been submitted successfully.",
+        });
+        
+        // Refresh to show the submitted review
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
-        alert('Failed to submit review');
+        toast({
+          title: "Error",
+          description: data.error || 'Failed to submit review',
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('Failed to submit review');
+      toast({
+        title: "Error",
+        description: "Failed to submit review. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setSubmittingReview(false);
     }
+  };
+
+  const getRatingLabel = (stars: number) => {
+    const labels = {
+      1: 'Poor',
+      2: 'Fair',
+      3: 'Good',
+      4: 'Great',
+      5: 'Excellent!'
+    };
+    return labels[stars as keyof typeof labels] || '';
   };
 
   const getStatusBadge = () => {
@@ -185,6 +270,7 @@ export default function ProjectDetailPage() {
     return (
       <Layout>
         <div className="container mx-auto py-32 text-center">
+          <AlertCircle className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h1 className="text-3xl font-bold mb-4">Project Not Found</h1>
           <p className="text-muted-foreground mb-8">This project doesn't exist or you don't have access to it.</p>
           <Button asChild>
@@ -244,6 +330,16 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
+          {/* Completed Project Alert */}
+          {project.status === 'completed' && existingReview && (
+            <Alert className="mb-6 bg-green-50 border-green-200">
+              <Trophy className="w-5 h-5 text-green-600" />
+              <AlertDescription className="text-green-800">
+                <strong>Project Completed!</strong> You've already submitted a review for this project.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2">
@@ -257,10 +353,10 @@ export default function ProjectDetailPage() {
                     <MessageSquare className="w-4 h-4 mr-2" />
                     Chat
                   </TabsTrigger>
-                  {(project.status === 'in_progress' || showReview) && (
+                  {(project.status === 'in_progress' || project.status === 'completed') && (
                     <TabsTrigger value="review">
                       <Star className="w-4 h-4 mr-2" />
-                      Complete & Review
+                      {existingReview ? 'Your Review' : 'Complete & Review'}
                     </TabsTrigger>
                   )}
                 </TabsList>
@@ -282,10 +378,13 @@ export default function ProjectDetailPage() {
                           <h3 className="text-2xl font-bold text-green-900 mt-1">
                             {project.designer.name}
                           </h3>
-                          <p className="text-green-800 mt-1">Working on your project</p>
+                          <p className="text-green-800 mt-1">
+                            {project.status === 'completed' ? 'Project completed' : 'Working on your project'}
+                          </p>
                         </div>
                         {project.status === 'in_progress' && (
                           <Button onClick={() => setActiveTab('review')} variant="outline" className="border-green-300">
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
                             Complete Project
                           </Button>
                         )}
@@ -299,11 +398,12 @@ export default function ProjectDetailPage() {
                       <h2 className="text-2xl font-bold mb-4">Project Photos</h2>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {project.photos.map((photo, i) => (
-                          <div key={i} className="relative aspect-square rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-105">
+                          <div key={i} className="relative aspect-square rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-105 cursor-pointer">
                             <img
                               src={photo}
                               alt={`Project photo ${i + 1}`}
                               className="w-full h-full object-cover"
+                              onClick={() => window.open(photo, '_blank')}
                             />
                           </div>
                         ))}
@@ -325,18 +425,85 @@ export default function ProjectDetailPage() {
                 {/* Review Tab */}
                 <TabsContent value="review">
                   <Card className="p-8">
-                    {!showReview ? (
+                    {existingReview ? (
+                      // Show existing review
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                          <Trophy className="w-8 h-8 text-yellow-500" />
+                          <div>
+                            <h3 className="text-2xl font-bold">Your Review</h3>
+                            <p className="text-muted-foreground">
+                              Submitted on {new Date(existingReview.createdAt).toLocaleDateString('en-KE', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-base font-semibold mb-3 block">Your Rating</Label>
+                          <div className="flex gap-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`w-10 h-10 ${
+                                  star <= existingReview.rating
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {getRatingLabel(existingReview.rating)}
+                          </p>
+                        </div>
+
+                        {existingReview.review && (
+                          <div>
+                            <Label className="text-base font-semibold mb-2 block">Your Feedback</Label>
+                            <Card className="p-4 bg-muted">
+                              <p className="whitespace-pre-wrap">{existingReview.review}</p>
+                            </Card>
+                          </div>
+                        )}
+
+                        <Alert>
+                          <Sparkles className="w-4 h-4" />
+                          <AlertDescription>
+                            Thank you for sharing your experience! Your review helps other clients find great designers.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    ) : !showReview ? (
+                      // Complete project button
                       <>
                         <h3 className="text-2xl font-bold mb-4">Complete Project</h3>
                         <p className="text-muted-foreground mb-6">
                           When the work is finished, mark the project as complete and leave a review for {project.designer?.name}.
                         </p>
-                        <Button size="lg" onClick={handleMarkComplete}>
-                          <CheckCircle2 className="w-5 h-5 mr-2" />
-                          Mark as Complete
+                        <Button 
+                          size="lg" 
+                          onClick={handleMarkComplete}
+                          disabled={completingProject}
+                        >
+                          {completingProject ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              Completing...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-5 h-5 mr-2" />
+                              Mark as Complete
+                            </>
+                          )}
                         </Button>
                       </>
                     ) : (
+                      // Review form
                       <div className="space-y-6">
                         <div>
                           <h3 className="text-2xl font-bold mb-2">Leave a Review</h3>
@@ -346,18 +513,20 @@ export default function ProjectDetailPage() {
                         </div>
 
                         <div>
-                          <Label className="text-base font-semibold mb-3 block">Rating</Label>
+                          <Label className="text-base font-semibold mb-3 block">Rating *</Label>
                           <div className="flex gap-2">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <button
                                 key={star}
                                 type="button"
                                 onClick={() => setRating(star)}
+                                onMouseEnter={() => setHoverRating(star)}
+                                onMouseLeave={() => setHoverRating(0)}
                                 className="focus:outline-none transition-transform hover:scale-110"
                               >
                                 <Star
                                   className={`w-12 h-12 ${
-                                    star <= rating
+                                    star <= (hoverRating || rating)
                                       ? 'fill-yellow-400 text-yellow-400'
                                       : 'text-gray-300'
                                   }`}
@@ -365,15 +534,18 @@ export default function ProjectDetailPage() {
                               </button>
                             ))}
                           </div>
-                          {rating > 0 && (
+                          {(rating > 0 || hoverRating > 0) && (
                             <p className="text-sm text-muted-foreground mt-2">
-                              {rating === 5 ? 'Excellent!' : rating === 4 ? 'Great!' : rating === 3 ? 'Good' : rating === 2 ? 'Fair' : 'Poor'}
+                              {getRatingLabel(hoverRating || rating)}
                             </p>
                           )}
                         </div>
 
                         <div>
                           <Label htmlFor="review" className="text-base font-semibold">Your Review (Optional)</Label>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Share details about your experience, the quality of work, communication, and professionalism.
+                          </p>
                           <Textarea
                             id="review"
                             rows={6}
@@ -381,7 +553,11 @@ export default function ProjectDetailPage() {
                             onChange={(e) => setReviewText(e.target.value)}
                             placeholder="Share your experience working with this designer..."
                             className="mt-2"
+                            maxLength={1000}
                           />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {reviewText.length}/1000 characters
+                          </p>
                         </div>
 
                         <Button
@@ -391,11 +567,16 @@ export default function ProjectDetailPage() {
                           className="w-full"
                         >
                           {submittingReview ? (
-                            <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                              Submitting Review...
+                            </>
                           ) : (
-                            <Star className="w-5 h-5 mr-2" />
+                            <>
+                              <Star className="w-5 h-5 mr-2" />
+                              Submit Review
+                            </>
                           )}
-                          Submit Review
                         </Button>
                       </div>
                     )}
