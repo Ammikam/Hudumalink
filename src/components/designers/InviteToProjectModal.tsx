@@ -1,3 +1,4 @@
+// src/components/designers/InviteToProjectModal.tsx
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,9 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { formatCurrency, type Designer } from '@/data/MockData';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@clerk/clerk-react';
+
+interface Designer {
+  _id: string;
+  name: string;
+  avatar?: string;
+  startingPrice: number;
+  // add any other fields the modal uses
+}
 
 interface InviteModalProps {
   designer: Designer;
@@ -22,60 +30,58 @@ export function InviteToProjectModal({ designer, open, onOpenChange }: InviteMod
   const { userId, isLoaded } = useAuth();
 
   const handleSubmit = async () => {
-  if (!isLoaded || !userId) {
-    toast({
-      variant: "destructive",
-      title: "Please sign in",
-      description: "You need to be logged in to create a project.",
-    });
-    return;
-  }
-
-  console.log("Sending invite...", { title, budget: budget[0], userId, designerId: designer.id });
-
-  try {
-    const response = await fetch('http://localhost:5000/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title,
-        description,
-        budget: budget[0],
-        client: {
-          clerkId: userId,
-        },
-        invitedDesigner: designer.id,
-      }),
-    });
-
-    console.log("Response status:", response.status);
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log("Success:", data);
-      toast({
-        title: "Invite Sent Successfully! 🎉",
-        description: `${designer.name.split(' ')[0]} has been invited to your project "${title}"`,
-      });
-      onOpenChange(false);
-    } else {
-      const errorText = await response.text();
-      console.error("Error response:", errorText);
+    if (!isLoaded || !userId) {
       toast({
         variant: "destructive",
-        title: "Failed to send invite",
-        description: errorText || "Server error",
+        title: "Please sign in",
+        description: "You need to be logged in to create a project.",
+      });
+      return;
+    }
+
+    console.log("Sending invite...", { title, budget: budget[0], userId, designerId: designer._id });
+
+    try {
+      const response = await fetch('http://localhost:5000/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          description,
+          budget: budget[0],
+          client: {
+            clerkId: userId,
+          },
+          invitedDesigner: designer._id,  // ← fixed: use _id
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Success:", data);
+        toast({
+          title: "Invite Sent Successfully! 🎉",
+          description: `${designer.name.split(' ')[0]} has been invited to your project "${title}"`,
+        });
+        onOpenChange(false);
+      } else {
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        toast({
+          variant: "destructive",
+          title: "Failed to send invite",
+          description: errorText || "Server error",
+        });
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      toast({
+        variant: "destructive",
+        title: "Network Error",
+        description: "Check if backend is running on port 5000",
       });
     }
-  } catch (error) {
-    console.error("Fetch error:", error);
-    toast({
-      variant: "destructive",
-      title: "Network Error",
-      description: "Check if backend is running on port 5000",
-    });
-  }
-};
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,13 +100,13 @@ export function InviteToProjectModal({ designer, open, onOpenChange }: InviteMod
             <Label>Budget Range</Label>
             <div className="p-4 bg-primary/10 rounded-lg text-center">
               <p className="font-display text-3xl font-bold text-primary">
-                {formatCurrency(budget[0])}
+                KSh {budget[0]?.toLocaleString() || '0'}
               </p>
             </div>
             <Slider
               value={budget}
               onValueChange={setBudget}
-              min={designer.startingPrice * 0.8}
+              min={Math.floor(designer.startingPrice * 0.8)}
               max={designer.startingPrice * 3}
               step={50000}
             />

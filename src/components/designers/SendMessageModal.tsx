@@ -1,11 +1,19 @@
+// src/components/designers/SendMessageModal.tsx
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Send } from 'lucide-react';
-import { type Designer } from '@/data/MockData';
+
+interface Designer {
+  _id: string;
+  name: string;
+  avatar: string;
+  responseTime?: string;
+  // add any other fields the modal actually uses
+}
 
 interface SendMessageModalProps {
   designer: Designer;
@@ -24,7 +32,7 @@ export function SendMessageModal({ designer, open, onOpenChange }: SendMessageMo
     if (message.trim()) {
       setMessages([...messages, { id: messages.length + 1, text: message, sender: 'client' }]);
       setMessage('');
-      // Simulate designer reply
+      // Simulate designer reply (in real app this would go to backend)
       setTimeout(() => {
         setMessages(prev => [...prev, { id: prev.length + 1, text: 'Thanks for reaching out! I\'ll review your message and reply soon.', sender: 'designer', name: designer.name }]);
       }, 1000);
@@ -37,11 +45,14 @@ export function SendMessageModal({ designer, open, onOpenChange }: SendMessageMo
         <DialogHeader className="p-6 border-b border-border">
           <div className="flex items-center gap-4">
             <Avatar className="w-12 h-12">
-              <img src={designer.avatar} alt={designer.name} />
+              <AvatarImage src={designer.avatar} alt={designer.name} />
+              <AvatarFallback>{designer.name?.[0]}</AvatarFallback>
             </Avatar>
             <div>
               <DialogTitle className="text-xl">{designer.name}</DialogTitle>
-              <p className="text-sm text-muted-foreground">Typically replies in {designer.responseTime}</p>
+              <p className="text-sm text-muted-foreground">
+                Typically replies in {designer.responseTime || 'a few hours'}
+              </p>
             </div>
           </div>
         </DialogHeader>
@@ -55,7 +66,8 @@ export function SendMessageModal({ designer, open, onOpenChange }: SendMessageMo
               >
                 {msg.sender === 'designer' && (
                   <Avatar className="w-8 h-8 flex-shrink-0">
-                    <img src={designer.avatar} alt={designer.name} />
+                    <AvatarImage src={designer.avatar} alt={designer.name} />
+                    <AvatarFallback>{designer.name?.[0]}</AvatarFallback>
                   </Avatar>
                 )}
                 <div className={`max-w-xs lg:max-w-md rounded-2xl px-4 py-3 ${
