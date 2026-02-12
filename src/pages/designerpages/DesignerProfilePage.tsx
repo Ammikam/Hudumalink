@@ -1,25 +1,12 @@
 // src/pages/designerpages/DesignerProfilePage.tsx
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 import { motion } from 'framer-motion';
 import { 
-  MapPin, 
-  Star, 
-  Clock, 
-  Sparkles, 
-  Calendar, 
-  CheckCircle2, 
-  Loader2,
-  DollarSign,
-  ImageIcon,
-  Edit,
-  Plus,
-  Settings,
-  Eye,
-  BarChart3,
-  MessageSquare,
-  Briefcase
+  MapPin, Star, Clock, Sparkles, Calendar, CheckCircle2, Loader2, Image,
+  Edit, Plus, Settings, Eye, BarChart3, MessageSquare, Briefcase, AlertCircle,
+  Instagram, Globe, Link as LinkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,35 +17,31 @@ import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
 import { Layout } from '@/components/Layout/Layout';
 import { useToast } from '@/components/ui/use-toast';
 
-interface PortfolioItem {
-  _id: string;
-  title: string;
-  description: string;
-  beforeImage: string;
-  afterImage: string;
-  style: string;
-  budget: number;
-  timeline: string;
-  location: string;
-}
-
 interface Review {
-  _id: string;
+  _id?: string;
   clientName: string;
-  clientAvatar: string;
+  clientAvatar?: string;
   rating: number;
   comment: string;
-  date: string;
+  date?: string;
   projectImage?: string;
+}
+
+interface SocialLinks {
+  instagram?: string;
+  pinterest?: string;
+  website?: string;
 }
 
 interface Designer {
   _id: string;
   clerkId: string;
   name: string;
+  email: string;
+  phone?: string;
   avatar: string;
   coverImage?: string;
-  tagline: string;
+  tagline?: string;
   location: string;
   verified: boolean;
   superVerified: boolean;
@@ -69,85 +52,97 @@ interface Designer {
   about: string;
   styles: string[];
   projectsCompleted: number;
-  portfolio: PortfolioItem[];
+  portfolioImages: string[];
   reviews: Review[];
   calendlyLink?: string;
-  socialLinks?: {
-    instagram?: string;
-    pinterest?: string;
-    website?: string;
-  };
+  socialLinks?: SocialLinks;
 }
 
 export default function DesignerProfilePage() {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const [designer, setDesigner] = useState<Designer | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (!isLoaded) return;
 
-    // Redirect if not logged in
     if (!user) {
       navigate('/sign-in');
       return;
     }
 
-    const fetchDesignerProfile = async () => {
+    const loadProfile = async () => {
       try {
         setLoading(true);
-        console.log('Fetching designer profile for clerkId:', user.id);
+        setError(null);
 
-        // First, get the user's MongoDB _id from their clerkId
-        const userRes = await fetch(`http://localhost:5000/api/users/${user.id}`);
-        
-        if (!userRes.ok) {
-          throw new Error('Failed to fetch user data');
+        const token = await getToken();
+        if (!token) throw new Error('No auth token available');
+
+        console.log('Step 1 - Fetching Mongo ID for Clerk ID:', user.id);
+
+        // Step 1: Get MongoDB ID from Clerk ID
+        const mongoRes = await fetch(`http://localhost:5000/api/users/mongo-id/${user.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!mongoRes.ok) {
+          const errText = await mongoRes.text();
+          throw new Error(`Mongo ID fetch failed (${mongoRes.status}): ${errText}`);
         }
 
-        const userData = await userRes.json();
-        console.log('User data:', userData);
+        const mongoData = await mongoRes.json();
+        console.log('Step 1 - Mongo ID response:', mongoData);
 
-        if (!userData.success || !userData.user?.designerProfile) {
-          toast({
-            title: "Not a Designer",
-            description: "You don't have a designer profile yet.",
-            variant: "destructive",
-          });
-          navigate('/');
-          return;
+        if (!mongoData.success || !mongoData.mongoId) {
+          throw new Error(mongoData.message || 'No MongoDB ID returned');
         }
 
-        // Now fetch the full designer profile
-        const designerRes = await fetch(`http://localhost:5000/api/designers/${userData.user.id}`);
-        
-        if (!designerRes.ok) {
-          throw new Error('Failed to fetch designer profile');
+        const mongoId = mongoData.mongoId;
+        console.log('✅ Mongo ID received:', mongoId);
+
+        // Step 2: Fetch designer profile using MongoDB ID
+        console.log('Step 2 - Fetching designer profile for ID:', mongoId);
+        const profileRes = await fetch(`http://localhost:5000/api/designers/${mongoId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!profileRes.ok) {
+          const errText = await profileRes.text();
+          throw new Error(`Designer fetch failed (${profileRes.status}): ${errText}`);
         }
 
-        const designerData = await designerRes.json();
-        console.log('Designer data:', designerData);
+        const profileData = await profileRes.json();
+        console.log('Step 2 - Full designer response:', profileData);
 
-        if (designerData.success) {
-          setDesigner(designerData.designer);
-        } else {
-          throw new Error(designerData.error || 'Designer profile not found');
+        if (!profileData.success || !profileData.designer) {
+          throw new Error(profileData.error || 'Designer profile not found');
         }
+
+        // The designer object is already transformed by the backend
+        const designerData = profileData.designer;
+        console.log('✅ Designer data loaded:', {
+          name: designerData.name,
+          reviewCount: designerData.reviews?.length || 0,
+          portfolioCount: designerData.portfolioImages?.length || 0,
+          rating: designerData.rating,
+        });
+
+        setDesigner(designerData);
+
       } catch (err: unknown) {
-        console.error('Fetch error:', err);
-
-        let message = "Failed to load your profile";
-        if (err instanceof Error) {
-          message = err.message;
-        }
-
+        console.error('❌ Profile load error:', err);
+        const msg = err instanceof Error ? err.message : 'Failed to load profile';
+        setError(msg);
         toast({
-          title: "Error",
-          description: message,
+          title: "Profile Error",
+          description: msg,
           variant: "destructive",
         });
       } finally {
@@ -155,42 +150,45 @@ export default function DesignerProfilePage() {
       }
     };
 
-    fetchDesignerProfile();
-  }, [user, isLoaded, navigate, toast]);
+    loadProfile();
+  }, [isLoaded, user, navigate, getToken, toast]);
 
   if (!isLoaded || loading) {
     return (
       <Layout>
         <div className="container mx-auto py-32 text-center">
           <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary mb-4" />
-          <p className="text-muted-foreground">Loading your profile...</p>
+          <p className="text-muted-foreground">Loading your designer profile...</p>
         </div>
       </Layout>
     );
   }
 
-  if (!designer) {
+  if (error || !designer) {
     return (
       <Layout>
         <div className="container mx-auto py-32 text-center">
-          <h1 className="font-display text-4xl font-bold mb-4">Profile Not Found</h1>
-          <p className="text-muted-foreground mb-8">
-            We couldn't load your designer profile. Please try again.
+          <AlertCircle className="w-16 h-16 mx-auto text-destructive mb-4" />
+          <h1 className="text-3xl font-bold mb-4">Profile Not Loaded</h1>
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+            {error || "We couldn't load your designer profile. It may not be fully set up yet."}
           </p>
-          <Button onClick={() => window.location.reload()} size="lg">
-            Retry
-          </Button>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+            <Button variant="outline" onClick={() => navigate('/designer/apply')}>
+              Set Up Profile
+            </Button>
+          </div>
         </div>
       </Layout>
     );
   }
 
   const filledStars = Math.floor(designer.rating);
-  const hasHalfStar = designer.rating % 1 >= 0.5;
 
   return (
     <Layout>
-      {/* Hero Section with Edit Controls */}
+      {/* Hero Section */}
       <div className="relative h-[50vh] min-h-[400px] overflow-hidden">
         <img
           src={designer.coverImage || "https://images.unsplash.com/photo-1618221195710-dd2dabb60b29?w=1600"}
@@ -199,11 +197,11 @@ export default function DesignerProfilePage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
 
-        {/* Edit Cover Button */}
         <Button
           variant="secondary"
           size="sm"
           className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm hover:bg-white/20"
+          onClick={() => navigate('/designer/apply')}
         >
           <Edit className="w-4 h-4 mr-2" />
           Edit Cover
@@ -212,15 +210,14 @@ export default function DesignerProfilePage() {
         <div className="absolute inset-0 flex items-end">
           <div className="container mx-auto px-4 lg:px-8 pb-12">
             <div className="flex flex-col lg:flex-row items-start lg:items-end gap-8">
-              {/* Avatar */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
                 className="relative"
               >
-                <Avatar className="w-32 h-32 lg:w-40 lg:h-40 ring-8 ring-cream/80 shadow-2xl">
-                  <AvatarImage src={designer.avatar} alt={designer.name} />
+                <Avatar className="w-32 h-32 lg:w-40 lg:h-40 ring-8 ring-white/50 shadow-2xl">
+                  <AvatarImage src={designer.avatar || user?.imageUrl} alt={designer.name} />
                   <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white">
                     {designer.name.split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
@@ -230,6 +227,7 @@ export default function DesignerProfilePage() {
                   size="sm"
                   variant="secondary"
                   className="absolute -bottom-2 -right-2 rounded-full w-10 h-10 p-0"
+                  onClick={() => navigate('/designer/apply')}
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -241,7 +239,6 @@ export default function DesignerProfilePage() {
                 )}
               </motion.div>
 
-              {/* Info */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -278,7 +275,7 @@ export default function DesignerProfilePage() {
                           key={i}
                           className={`w-5 h-5 ${
                             i < filledStars
-                              ? 'text-amber-400 fill-amber-400'
+                              ? 'fill-amber-400 text-amber-400'
                               : 'text-white/40'
                           }`}
                         />
@@ -299,6 +296,7 @@ export default function DesignerProfilePage() {
                   <Button 
                     size="lg" 
                     className="bg-gradient-to-r from-primary to-accent"
+                    onClick={() => navigate('/designer/apply')}
                   >
                     <Edit className="w-5 h-5 mr-2" />
                     Edit Profile
@@ -307,17 +305,17 @@ export default function DesignerProfilePage() {
                   <Button 
                     size="lg" 
                     variant="secondary"
-                    className="bg-white/10 backdrop-blur-sm border-white/30 hover:bg-white/20 text-white"
-                    onClick={() => window.open(`/designers/${designer._id}`, '_blank')}
+                    onClick={() => window.open(`/designer/${designer._id}`, '_blank')}
                   >
                     <Eye className="w-5 h-5 mr-2" />
-                    Preview Public Profile
+                    Preview Public View
                   </Button>
 
                   <Button 
                     size="lg" 
                     variant="outline"
                     className="border-white/50 text-white hover:bg-white/10"
+                    onClick={() => setActiveTab('settings')}
                   >
                     <Settings className="w-5 h-5 mr-2" />
                     Settings
@@ -355,7 +353,6 @@ export default function DesignerProfilePage() {
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-8">
               <div className="grid lg:grid-cols-3 gap-8">
-                {/* Stats Cards */}
                 <Card className="p-6 bg-gradient-to-br from-primary/10 to-primary/5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-muted-foreground">Projects Completed</h3>
@@ -382,91 +379,115 @@ export default function DesignerProfilePage() {
                 </Card>
               </div>
 
-              {/* About Section */}
+              {/* About */}
               <Card className="p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="font-display text-2xl font-bold">About</h2>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => navigate('/designer/apply')}>
                     <Edit className="w-4 h-4 mr-2" />
                     Edit
                   </Button>
                 </div>
-                <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap mb-6">
+                <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">
                   {designer.about || "Add a description about your work and expertise..."}
                 </p>
+              </Card>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">Styles & Specialties</h3>
-                    <Button variant="outline" size="sm">
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                  </div>
+              {/* Styles */}
+              {designer.styles && designer.styles.length > 0 && (
+                <Card className="p-8">
+                  <h2 className="font-display text-2xl font-bold mb-6">Design Styles</h2>
                   <div className="flex flex-wrap gap-3">
-                    {designer.styles?.map(style => (
-                      <Badge key={style} variant="secondary" className="text-base px-4 py-2">
+                    {designer.styles.map((style, idx) => (
+                      <Badge key={idx} variant="secondary" className="px-4 py-2 text-base">
                         {style}
                       </Badge>
                     ))}
-                    <Button variant="outline" size="sm" className="rounded-full">
-                      <Plus className="w-4 h-4" />
-                    </Button>
                   </div>
-                </div>
-              </Card>
+                </Card>
+              )}
+
+              {/* Social Links */}
+              {designer.socialLinks && (
+                <Card className="p-8">
+                  <h2 className="font-display text-2xl font-bold mb-6">Connect</h2>
+                  <div className="flex flex-wrap gap-4">
+                    {designer.socialLinks.instagram && (
+                      <Button
+                        variant="outline"
+                        onClick={() => window.open(designer.socialLinks!.instagram, '_blank')}
+                      >
+                        <Instagram className="w-5 h-5 mr-2" />
+                        Instagram
+                      </Button>
+                    )}
+                    {designer.socialLinks.pinterest && (
+                      <Button
+                        variant="outline"
+                        onClick={() => window.open(designer.socialLinks!.pinterest, '_blank')}
+                      >
+                        <LinkIcon className="w-5 h-5 mr-2" />
+                        Pinterest
+                      </Button>
+                    )}
+                    {designer.socialLinks.website && (
+                      <Button
+                        variant="outline"
+                        onClick={() => window.open(designer.socialLinks!.website, '_blank')}
+                      >
+                        <Globe className="w-5 h-5 mr-2" />
+                        Website
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              )}
             </TabsContent>
 
             {/* Portfolio Tab */}
             <TabsContent value="portfolio" className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-3xl font-bold">Portfolio</h2>
-                <Button className="bg-gradient-to-r from-primary to-accent">
+                <Button 
+                  className="bg-gradient-to-r from-primary to-accent"
+                  onClick={() => navigate('/designer/apply')}
+                >
                   <Plus className="w-5 h-5 mr-2" />
                   Add Project
                 </Button>
               </div>
 
-              {designer.portfolio?.length > 0 ? (
+              {designer.portfolioImages && designer.portfolioImages.length > 0 ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {designer.portfolio.map((item) => (
-                    <Card key={item._id} className="group overflow-hidden">
-                      <div className="relative">
-                        <BeforeAfterSlider
-                          beforeImage={item.beforeImage}
-                          afterImage={item.afterImage}
-                          className="aspect-[4/3] w-full"
+                  {designer.portfolioImages.map((imageUrl, index) => (
+                    <Card key={index} className="group overflow-hidden">
+                      <div className="relative aspect-[4/3] w-full overflow-hidden">
+                        <img 
+                          src={imageUrl} 
+                          alt={`Portfolio ${index + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
-                        <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="sm" variant="secondary">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300" />
                       </div>
                       <div className="p-4">
-                        <h3 className="font-bold text-lg mb-2">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                          {item.description}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Badge variant="outline">{item.style}</Badge>
-                          <span>•</span>
-                          <span>{item.timeline}</span>
-                        </div>
+                        <h3 className="font-bold text-lg">Project {index + 1}</h3>
                       </div>
                     </Card>
                   ))}
                 </div>
               ) : (
                 <Card className="p-12 text-center">
-                  <ImageIcon className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-2xl font-bold mb-2">No Portfolio Items Yet</h3>
+                  <Image className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-2xl font-bold mb-2">No Portfolio Yet</h3>
                   <p className="text-muted-foreground mb-6">
-                    Showcase your best work to attract more clients
+                    Add your best work to showcase your skills
                   </p>
-                  <Button className="bg-gradient-to-r from-primary to-accent">
+                  <Button 
+                    className="bg-gradient-to-r from-primary to-accent"
+                    onClick={() => navigate('/designer/apply')}
+                  >
                     <Plus className="w-5 h-5 mr-2" />
-                    Add Your First Project
+                    Add First Project
                   </Button>
                 </Card>
               )}
@@ -478,7 +499,7 @@ export default function DesignerProfilePage() {
                 <div>
                   <h2 className="font-display text-3xl font-bold">Client Reviews</h2>
                   <p className="text-muted-foreground mt-2">
-                    {designer.reviewCount} total reviews • {designer.rating.toFixed(1)} average rating
+                    {designer.reviewCount} total reviews • {designer.rating.toFixed(1)} average
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -489,7 +510,7 @@ export default function DesignerProfilePage() {
                         className={`w-6 h-6 ${
                           i < Math.floor(designer.rating)
                             ? 'fill-primary text-primary'
-                            : 'text-muted-foreground'
+                            : 'text-muted'
                         }`}
                       />
                     ))}
@@ -497,23 +518,28 @@ export default function DesignerProfilePage() {
                 </div>
               </div>
 
-              {designer.reviews?.length > 0 ? (
+              {designer.reviews && designer.reviews.length > 0 ? (
                 <div className="grid gap-6">
-                  {designer.reviews.map(review => (
-                    <Card key={review._id} className="p-6">
+                  {designer.reviews.map((review, index) => (
+                    <Card key={review._id || index} className="p-6">
                       <div className="flex items-start gap-4">
                         <Avatar className="w-12 h-12">
                           <AvatarImage src={review.clientAvatar} />
-                          <AvatarFallback>{review.clientName[0]}</AvatarFallback>
+                          <AvatarFallback>{review.clientName?.[0] || '?'}</AvatarFallback>
                         </Avatar>
 
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-3">
                             <div>
-                              <h4 className="font-bold">{review.clientName}</h4>
-                              <p className="text-sm text-muted-foreground">{review.date}</p>
+                              <h4 className="font-bold">{review.clientName || 'Anonymous'}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                {review.date ? new Date(review.date).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                }) : 'Date not available'}
+                              </p>
                             </div>
-
                             <div className="flex">
                               {[...Array(5)].map((_, i) => (
                                 <Star
@@ -525,9 +551,9 @@ export default function DesignerProfilePage() {
                               ))}
                             </div>
                           </div>
-
-                          <p className="leading-relaxed">"{review.comment}"</p>
-
+                          <p className="leading-relaxed text-foreground">
+                            {review.comment || 'No comment provided'}
+                          </p>
                           {review.projectImage && (
                             <div className="mt-4 rounded-lg overflow-hidden border">
                               <img 
@@ -547,7 +573,7 @@ export default function DesignerProfilePage() {
                   <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-2xl font-bold mb-2">No Reviews Yet</h3>
                   <p className="text-muted-foreground">
-                    Complete projects to start receiving client reviews
+                    Complete projects to start receiving client feedback
                   </p>
                 </Card>
               )}
@@ -557,18 +583,20 @@ export default function DesignerProfilePage() {
             <TabsContent value="settings" className="space-y-6">
               <Card className="p-6">
                 <h2 className="font-display text-2xl font-bold mb-6">Profile Settings</h2>
-                
+                <p className="text-muted-foreground mb-6">
+                  Update these settings by editing your designer profile
+                </p>
                 <div className="space-y-6">
                   <div>
                     <label className="font-semibold mb-2 block">Calendly Link</label>
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className="flex-1 px-4 py-2 border rounded-lg"
+                        className="flex-1 px-4 py-2 border rounded-lg bg-muted/50"
                         placeholder="https://calendly.com/your-link"
-                        defaultValue={designer.calendlyLink}
+                        value={designer.calendlyLink || ''}
+                        readOnly
                       />
-                      <Button variant="outline">Save</Button>
                     </div>
                   </div>
 
@@ -577,11 +605,11 @@ export default function DesignerProfilePage() {
                     <div className="flex gap-2">
                       <input
                         type="number"
-                        className="flex-1 px-4 py-2 border rounded-lg"
+                        className="flex-1 px-4 py-2 border rounded-lg bg-muted/50"
                         placeholder="50000"
-                        defaultValue={designer.startingPrice}
+                        value={designer.startingPrice || 0}
+                        readOnly
                       />
-                      <Button variant="outline">Save</Button>
                     </div>
                   </div>
 
@@ -590,13 +618,21 @@ export default function DesignerProfilePage() {
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className="flex-1 px-4 py-2 border rounded-lg"
+                        className="flex-1 px-4 py-2 border rounded-lg bg-muted/50"
                         placeholder="a few hours"
-                        defaultValue={designer.responseTime}
+                        value={designer.responseTime || ''}
+                        readOnly
                       />
-                      <Button variant="outline">Save</Button>
                     </div>
                   </div>
+
+                  <Button 
+                    className="w-full bg-gradient-to-r from-primary to-accent"
+                    onClick={() => navigate('/designer/apply')}
+                  >
+                    <Edit className="w-5 h-5 mr-2" />
+                    Edit Full Profile
+                  </Button>
                 </div>
               </Card>
             </TabsContent>
