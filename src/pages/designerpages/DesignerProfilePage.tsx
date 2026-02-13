@@ -1,13 +1,14 @@
 // src/pages/designerpages/DesignerProfilePage.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
-import { motion } from 'framer-motion';
-import { 
+import { motion, AnimatePresence } from 'framer-motion';
+import {
   MapPin, Star, Clock, Sparkles, CheckCircle2, Loader2,
-  Edit, Plus, Settings, Eye, BarChart3, MessageSquare,
+  Edit, Settings, Eye, BarChart3, MessageSquare,
   Briefcase, AlertCircle, Instagram, Globe, Link as LinkIcon,
-  DollarSign, Calendar, Image
+  DollarSign, Calendar, Images, X, ChevronLeft, ChevronRight,
+  ZoomIn, CheckCircle, Circle, PlayCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Layout } from '@/components/Layout/Layout';
 import { useToast } from '@/components/ui/use-toast';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────────
+
+type ProjectStatus = 'open' | 'in_progress' | 'completed';
 
 interface CompletedProject {
   _id: string;
@@ -31,6 +34,7 @@ interface CompletedProject {
   thumbnail: string;
   completedAt: string;
   clientName: string;
+  status?: ProjectStatus;
 }
 
 interface Review {
@@ -73,7 +77,155 @@ interface Designer {
   };
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Status config ─────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<ProjectStatus, {
+  label: string;
+  className: string;
+  icon: React.ReactNode;
+}> = {
+  open: {
+    label: 'Open',
+    className: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+    icon: <Circle className="w-3 h-3 fill-emerald-500 text-emerald-500" />,
+  },
+  in_progress: {
+    label: 'In Progress',
+    className: 'bg-blue-100 text-blue-800 border border-blue-200',
+    icon: <PlayCircle className="w-3 h-3 fill-blue-500 text-blue-500" />,
+  },
+  completed: {
+    label: 'Completed',
+    className: 'bg-violet-100 text-violet-800 border border-violet-200',
+    icon: <CheckCircle className="w-3 h-3 fill-violet-500 text-violet-500" />,
+  },
+};
+
+// ─── Lightbox component ────────────────────────────────────────────────────────
+
+interface LightboxProps {
+  images: string[];
+  initialIndex: number;
+  title: string;
+  onClose: () => void;
+}
+
+function Lightbox({ images, initialIndex, title, onClose }: LightboxProps) {
+  const [current, setCurrent] = useState(initialIndex);
+
+  const prev = useCallback(() =>
+    setCurrent(i => (i - 1 + images.length) % images.length), [images.length]);
+  const next = useCallback(() =>
+    setCurrent(i => (i + 1) % images.length), [images.length]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose, prev, next]);
+
+  // Prevent scroll behind modal
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4 flex-shrink-0"
+          onClick={e => e.stopPropagation()}
+        >
+          <div>
+            <p className="text-white font-semibold text-lg truncate max-w-xs lg:max-w-lg">{title}</p>
+            <p className="text-white/50 text-sm">{current + 1} / {images.length}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+        </div>
+
+        {/* Main image */}
+        <div
+          className="flex-1 flex items-center justify-center relative px-16 min-h-0"
+          onClick={e => e.stopPropagation()}
+        >
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={current}
+              src={images[current]}
+              alt={`${title} — photo ${current + 1}`}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl select-none"
+              draggable={false}
+            />
+          </AnimatePresence>
+
+          {/* Prev / Next */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={prev}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center transition backdrop-blur-sm"
+              >
+                <ChevronLeft className="w-6 h-6 text-white" />
+              </button>
+              <button
+                onClick={next}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center transition backdrop-blur-sm"
+              >
+                <ChevronRight className="w-6 h-6 text-white" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Thumbnail strip */}
+        {images.length > 1 && (
+          <div
+            className="flex gap-2 px-6 py-4 overflow-x-auto flex-shrink-0 justify-center"
+            onClick={e => e.stopPropagation()}
+          >
+            {images.map((url, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden transition-all ${
+                  i === current
+                    ? 'ring-2 ring-white scale-110'
+                    : 'opacity-50 hover:opacity-80'
+                }`}
+              >
+                <img src={url} alt="" className="w-full h-full object-cover" draggable={false} />
+              </button>
+            ))}
+          </div>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 
 export default function DesignerProfilePage() {
   const { user, isLoaded } = useUser();
@@ -81,11 +233,23 @@ export default function DesignerProfilePage() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const [designer, setDesigner] = useState<Designer | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
+  const [designer, setDesigner]   = useState<Designer | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [expandedProject, setExpandedProject] = useState<string | null>(null);
+
+  // Lightbox state: { images, index, title } | null
+  const [lightbox, setLightbox] = useState<{
+    images: string[];
+    index: number;
+    title: string;
+  } | null>(null);
+
+  const openLightbox = (images: string[], index: number, title: string) => {
+    setLightbox({ images, index, title });
+  };
+
+  // ─── Data fetching ────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -99,7 +263,6 @@ export default function DesignerProfilePage() {
         const token = await getToken();
         if (!token) throw new Error('No auth token available');
 
-        // Step 1: Clerk ID → Mongo ID
         const mongoRes = await fetch(
           `http://localhost:5000/api/users/mongo-id/${user.id}`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -108,16 +271,14 @@ export default function DesignerProfilePage() {
         const mongoData = await mongoRes.json();
         if (!mongoData.success || !mongoData.mongoId) throw new Error('No MongoDB ID returned');
 
-        // Step 2: Fetch designer profile (now includes completedProjects)
         const profileRes = await fetch(
           `http://localhost:5000/api/designers/${mongoData.mongoId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!profileRes.ok) throw new Error(`Designer fetch failed (${profileRes.status})`);
         const profileData = await profileRes.json();
-        if (!profileData.success || !profileData.designer) {
+        if (!profileData.success || !profileData.designer)
           throw new Error(profileData.error || 'Designer profile not found');
-        }
 
         setDesigner(profileData.designer);
       } catch (err: unknown) {
@@ -132,7 +293,7 @@ export default function DesignerProfilePage() {
     loadProfile();
   }, [isLoaded, user, navigate, getToken, toast]);
 
-  // ─── Loading / Error states ────────────────────────────────────────────────
+  // ─── Loading / error guards ───────────────────────────────────────────────
 
   if (!isLoaded || loading) {
     return (
@@ -156,27 +317,47 @@ export default function DesignerProfilePage() {
           </p>
           <div className="flex gap-4 justify-center">
             <Button onClick={() => window.location.reload()}>Retry</Button>
-            <Button variant="outline" onClick={() => navigate('/designer/apply')}>
-              Set Up Profile
-            </Button>
+            <Button variant="outline" onClick={() => navigate('/designer/apply')}>Set Up Profile</Button>
           </div>
         </div>
       </Layout>
     );
   }
 
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+
   const filledStars = Math.floor(designer.rating);
-
-  const formatCurrency = (n: number) =>
-    `KSh ${n.toLocaleString()}`;
-
+  const formatCurrency = (n: number) => `KSh ${n.toLocaleString()}`;
   const formatDate = (ds: string) =>
     new Date(ds).toLocaleDateString('en-KE', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const getStatusBadge = (status: ProjectStatus = 'completed') => {
+    const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.completed;
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.className}`}>
+        {cfg.icon}
+        {cfg.label}
+      </span>
+    );
+  };
+
+  // Combine all images for a project into one lightbox-ready array
+  const getAllProjectImages = (project: CompletedProject) => project.photos ?? [];
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <Layout>
+
+      {/* ── Lightbox (portal-like, sits above everything) ── */}
+      {lightbox && (
+        <Lightbox
+          images={lightbox.images}
+          initialIndex={lightbox.index}
+          title={lightbox.title}
+          onClose={() => setLightbox(null)}
+        />
+      )}
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="relative h-[50vh] min-h-[400px] overflow-hidden">
@@ -189,7 +370,7 @@ export default function DesignerProfilePage() {
 
         <Button
           variant="secondary" size="sm"
-          className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm hover:bg-white/20"
+          className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border-white/20"
           onClick={() => navigate('/designer/apply')}
         >
           <Edit className="w-4 h-4 mr-2" />Edit Cover
@@ -278,18 +459,10 @@ export default function DesignerProfilePage() {
         <div className="container mx-auto px-4 lg:px-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
             <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 h-14">
-              <TabsTrigger value="overview" className="text-base">
-                <BarChart3 className="w-4 h-4 mr-2" />Overview
-              </TabsTrigger>
-              <TabsTrigger value="portfolio" className="text-base">
-                <Briefcase className="w-4 h-4 mr-2" />Portfolio
-              </TabsTrigger>
-              <TabsTrigger value="reviews" className="text-base">
-                <MessageSquare className="w-4 h-4 mr-2" />Reviews
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="text-base">
-                <Settings className="w-4 h-4 mr-2" />Settings
-              </TabsTrigger>
+              <TabsTrigger value="overview"  className="text-base"><BarChart3     className="w-4 h-4 mr-2" />Overview</TabsTrigger>
+              <TabsTrigger value="portfolio" className="text-base"><Briefcase     className="w-4 h-4 mr-2" />Portfolio</TabsTrigger>
+              <TabsTrigger value="reviews"   className="text-base"><MessageSquare className="w-4 h-4 mr-2" />Reviews</TabsTrigger>
+              <TabsTrigger value="settings"  className="text-base"><Settings      className="w-4 h-4 mr-2" />Settings</TabsTrigger>
             </TabsList>
 
             {/* ── Overview ── */}
@@ -302,7 +475,6 @@ export default function DesignerProfilePage() {
                   </div>
                   <div className="text-4xl font-bold text-primary">{designer.projectsCompleted}</div>
                 </Card>
-
                 <Card className="p-6 bg-gradient-to-br from-accent/10 to-accent/5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-muted-foreground">Average Rating</h3>
@@ -311,7 +483,6 @@ export default function DesignerProfilePage() {
                   <div className="text-4xl font-bold text-accent">{designer.rating.toFixed(1)}</div>
                   <p className="text-sm text-muted-foreground mt-1">from {designer.reviewCount} reviews</p>
                 </Card>
-
                 <Card className="p-6 bg-gradient-to-br from-blue-500/10 to-blue-500/5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-muted-foreground">Response Time</h3>
@@ -321,7 +492,6 @@ export default function DesignerProfilePage() {
                 </Card>
               </div>
 
-              {/* About */}
               <Card className="p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="font-display text-2xl font-bold">About</h2>
@@ -334,7 +504,6 @@ export default function DesignerProfilePage() {
                 </p>
               </Card>
 
-              {/* Styles */}
               {designer.styles?.length > 0 && (
                 <Card className="p-8">
                   <h2 className="font-display text-2xl font-bold mb-6">Design Styles</h2>
@@ -346,7 +515,6 @@ export default function DesignerProfilePage() {
                 </Card>
               )}
 
-              {/* Social links */}
               {designer.socialLinks && Object.values(designer.socialLinks).some(Boolean) && (
                 <Card className="p-8">
                   <h2 className="font-display text-2xl font-bold mb-6">Connect</h2>
@@ -377,142 +545,177 @@ export default function DesignerProfilePage() {
                 <div>
                   <h2 className="font-display text-3xl font-bold">Portfolio</h2>
                   <p className="text-muted-foreground mt-1">
-                    {designer.completedProjects?.length || 0} completed project{designer.completedProjects?.length !== 1 ? 's' : ''}
+                    {designer.completedProjects?.length || 0} project{designer.completedProjects?.length !== 1 ? 's' : ''}
                   </p>
                 </div>
               </div>
 
-              {/* ✅ Completed projects with full info */}
               {designer.completedProjects?.length > 0 ? (
                 <div className="grid md:grid-cols-2 gap-6">
-                  {designer.completedProjects.map(project => (
-                    <Card key={project._id} className="overflow-hidden group">
+                  {designer.completedProjects.map(project => {
+                    const allImages = getAllProjectImages(project);
+                    const hasPhotos = allImages.length > 0;
 
-                      {/* Photo */}
-                      <div className="relative h-56 overflow-hidden bg-muted">
-                        {project.photos?.length > 0 ? (
-                          <>
-                            <img
-                              src={project.photos[0]}
-                              alt={project.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                            {/* Photo count badge */}
-                            {project.photos.length > 1 && (
-                              <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                                <Image className="w-3 h-3" />
-                                {project.photos.length} photos
+                    return (
+                      <Card key={project._id} className="overflow-hidden group">
+
+                        {/* ── Photo hero — clicking opens lightbox ── */}
+                        <div
+                          className="relative h-56 overflow-hidden bg-muted cursor-pointer"
+                          onClick={() => hasPhotos && openLightbox(allImages, 0, project.title)}
+                        >
+                          {hasPhotos ? (
+                            <>
+                              <img
+                                src={allImages[0]}
+                                alt={project.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+
+                              {/* Dark overlay on hover */}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors duration-300 flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center gap-2 text-white">
+                                  <ZoomIn className="w-8 h-8" />
+                                  <span className="text-sm font-semibold">
+                                    {allImages.length > 1 ? `View ${allImages.length} photos` : 'View photo'}
+                                  </span>
+                                </div>
                               </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Briefcase className="w-12 h-12 text-muted-foreground" />
-                          </div>
-                        )}
-                        {/* Style badges overlay */}
-                        {project.styles?.length > 0 && (
-                          <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
-                            {project.styles.slice(0, 2).map(s => (
-                              <Badge key={s} className="bg-black/60 text-white text-xs border-0">{s}</Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
 
-                      {/* Info */}
-                      <div className="p-5">
-                        <h3 className="font-bold text-lg mb-2 line-clamp-1">{project.title}</h3>
-                        {project.description && (
-                          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                            {project.description}
-                          </p>
-                        )}
+                              {/* Photo count pill */}
+                              {allImages.length > 1 && (
+                                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 pointer-events-none">
+                                  <Images className="w-3.5 h-3.5" />
+                                  {allImages.length}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                              <Briefcase className="w-12 h-12" />
+                              <span className="text-sm">No photos</span>
+                            </div>
+                          )}
 
-                        <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground mb-4">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 flex-shrink-0" />
-                            <span className="truncate">{project.location || 'N/A'}</span>
+                          {/* ✅ Status badge — top-left overlay */}
+                          <div className="absolute top-2 left-2 pointer-events-none">
+                            {getStatusBadge((project.status ?? 'completed') as ProjectStatus)}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 flex-shrink-0" />
-                            <span>{formatCurrency(project.budget)}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 flex-shrink-0" />
-                            <span>{project.timeline}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 flex-shrink-0" />
-                            <span>{formatDate(project.completedAt)}</span>
-                          </div>
+
+                          {/* Style tags — top-right */}
+                          {project.styles?.length > 0 && (
+                            <div className="absolute top-2 right-2 flex gap-1 pointer-events-none">
+                              {project.styles.slice(0, 2).map(s => (
+                                <span key={s} className="bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-0.5 rounded-full">{s}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Expand to see all photos */}
-                        {project.photos?.length > 1 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setExpandedProject(
-                              expandedProject === project._id ? null : project._id
-                            )}
-                          >
-                            {expandedProject === project._id ? 'Hide photos' : `View all ${project.photos.length} photos`}
-                          </Button>
-                        )}
+                        {/* ── Info ── */}
+                        <div className="p-5">
+                          <h3 className="font-bold text-lg mb-1 line-clamp-1">{project.title}</h3>
+                          {project.description && (
+                            <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{project.description}</p>
+                          )}
 
-                        {/* Extra photos grid */}
-                        {expandedProject === project._id && project.photos?.length > 1 && (
-                          <div className="grid grid-cols-3 gap-2 mt-3">
-                            {project.photos.slice(1).map((photo, i) => (
-                              <img
-                                key={i}
-                                src={photo}
-                                alt={`${project.title} ${i + 2}`}
-                                className="w-full aspect-square object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
-                                onClick={() => window.open(photo, '_blank')}
-                              />
-                            ))}
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-muted-foreground mb-4">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span className="truncate">{project.location || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span>{formatCurrency(project.budget)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span>{project.timeline}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                              <span>{formatDate(project.completedAt)}</span>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </Card>
-                  ))}
+
+                          {/* Thumbnail strip — shows extra photos, click to open at that index */}
+                          {allImages.length > 1 && (
+                            <div className="flex gap-1.5 mt-3">
+                              {allImages.slice(0, 5).map((photo, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => openLightbox(allImages, i, project.title)}
+                                  className={`relative flex-shrink-0 w-12 h-12 rounded-md overflow-hidden ring-2 transition-all hover:ring-primary ${
+                                    i === 0 ? 'ring-primary' : 'ring-transparent'
+                                  }`}
+                                >
+                                  <img src={photo} alt="" className="w-full h-full object-cover" />
+                                  {/* "+N more" overlay on last visible thumb */}
+                                  {i === 4 && allImages.length > 5 && (
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold">
+                                      +{allImages.length - 5}
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : (
-                // ─── Empty state ─────────────────────────────────────────────
                 <Card className="p-12 text-center">
                   <Briefcase className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-2xl font-bold mb-2">No completed projects yet</h3>
-                  <p className="text-muted-foreground mb-2">
-                    Projects you complete on the platform will appear here automatically
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Browse open projects and send proposals to get started
-                  </p>
+                  <p className="text-muted-foreground mb-1">Projects you complete on the platform will appear here automatically</p>
+                  <p className="text-sm text-muted-foreground">Browse open projects and send proposals to get started</p>
                 </Card>
               )}
 
-              {/* Raw portfolio images (uploaded during application) */}
+              {/* Application portfolio images - ENHANCED VERSION */}
               {designer.portfolioImages?.length > 0 && (
-                <div className="mt-8">
-                  <h3 className="font-display text-xl font-bold mb-4 text-muted-foreground">
-                    Application Portfolio Images
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Card className="p-6 mt-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="font-display text-2xl font-bold">Application Portfolio</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {designer.portfolioImages.length} image{designer.portfolioImages.length !== 1 ? 's' : ''} from your application
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="text-sm px-3 py-1">
+                      <Images className="w-4 h-4 mr-1.5" />
+                      {designer.portfolioImages.length}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {designer.portfolioImages.map((url, i) => (
-                      <div key={i} className="relative aspect-square rounded-xl overflow-hidden group">
+                      <button
+                        key={i}
+                        onClick={() => openLightbox(designer.portfolioImages, i, 'Application Portfolio')}
+                        className="relative aspect-square rounded-lg overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all hover:shadow-lg"
+                      >
                         <img
                           src={url}
                           alt={`Portfolio ${i + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
-                          onClick={() => window.open(url, '_blank')}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         />
-                      </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="bg-white/90 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform group-hover:scale-100 scale-75">
+                            <ZoomIn className="w-5 h-5 text-primary" />
+                          </div>
+                        </div>
+                        {/* Image number indicator */}
+                        <div className="absolute bottom-1.5 right-1.5 bg-black/60 backdrop-blur-sm text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                          #{i + 1}
+                        </div>
+                      </button>
                     ))}
                   </div>
-                </div>
+                </Card>
               )}
             </TabsContent>
 
@@ -557,9 +760,17 @@ export default function DesignerProfilePage() {
                           </div>
                           <p className="leading-relaxed">{review.comment || 'No comment provided'}</p>
                           {review.projectImage && (
-                            <div className="mt-4 rounded-lg overflow-hidden border">
-                              <img src={review.projectImage} alt="Project" className="w-full h-48 object-cover" />
-                            </div>
+                            <button
+                              onClick={() => openLightbox([review.projectImage!], 0, `${review.clientName}'s project`)}
+                              className="mt-4 rounded-lg overflow-hidden border block w-full group"
+                            >
+                              <div className="relative">
+                                <img src={review.projectImage} alt="Project" className="w-full h-48 object-cover group-hover:brightness-90 transition" />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                                  <ZoomIn className="w-8 h-8 text-white drop-shadow-lg" />
+                                </div>
+                              </div>
+                            </button>
                           )}
                         </div>
                       </div>
@@ -581,21 +792,19 @@ export default function DesignerProfilePage() {
                 <h2 className="font-display text-2xl font-bold mb-6">Profile Settings</h2>
                 <div className="space-y-6">
                   {[
-                    { label: 'Calendly Link',         value: designer.calendlyLink,   placeholder: 'https://calendly.com/your-link', type: 'text' },
-                    { label: 'Starting Price (KSh)',  value: designer.startingPrice,  placeholder: '50000',                          type: 'number' },
-                    { label: 'Response Time',         value: designer.responseTime,   placeholder: 'a few hours',                    type: 'text' },
+                    { label: 'Calendly Link',        value: designer.calendlyLink,  placeholder: 'https://calendly.com/your-link', type: 'text'   },
+                    { label: 'Starting Price (KSh)', value: designer.startingPrice, placeholder: '50000',                          type: 'number' },
+                    { label: 'Response Time',        value: designer.responseTime,  placeholder: 'a few hours',                    type: 'text'   },
                   ].map(({ label, value, placeholder, type }) => (
                     <div key={label}>
                       <label className="font-semibold mb-2 block">{label}</label>
-                      <div className="flex gap-2">
-                        <input
-                          type={type}
-                          className="flex-1 px-4 py-2 border rounded-lg bg-muted/50"
-                          placeholder={placeholder}
-                          defaultValue={value || ''}
-                          readOnly
-                        />
-                      </div>
+                      <input
+                        type={type}
+                        className="w-full px-4 py-2 border rounded-lg bg-muted/50"
+                        placeholder={placeholder}
+                        defaultValue={value || ''}
+                        readOnly
+                      />
                     </div>
                   ))}
                   <Button className="w-full bg-gradient-to-r from-primary to-accent" onClick={() => navigate('/designer/apply')}>
