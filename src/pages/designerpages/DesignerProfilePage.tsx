@@ -615,11 +615,12 @@ export default function DesignerProfilePage() {
                   className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
                   <Camera className="w-7 h-7 text-white drop-shadow-lg"/>
                 </button>
-                {designer.verified && (
-                  <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-lg">
-                    <CheckCircle2 className="w-8 h-8 text-primary"/>
-                  </div>
-                )}
+                //i dont like this verified badge
+                {/* {designer.verified && (
+                  // <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-lg">
+                  //   <CheckCircle2 className="w-8 h-8 text-primary"/>
+                  // </div>
+                )} */}
               </motion.div>
 
               {/* Name + inline tagline */}
