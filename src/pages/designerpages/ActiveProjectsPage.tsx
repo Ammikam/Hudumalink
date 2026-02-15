@@ -104,7 +104,7 @@ export default function ActiveProjectsPage() {
 
                   <Badge className="mb-4 bg-blue-100 text-blue-800">In Progress</Badge>
 
-                  {/* CORRECT LINK — THIS WAS THE BUG */}
+                
                   <Button asChild className="w-full">
                     <Link to={`/designer/projects/${project._id}`}>
                       Open Chat & Details

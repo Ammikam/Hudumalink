@@ -9,7 +9,7 @@ import {
   AlertCircle, Instagram, Globe, Link as LinkIcon, DollarSign,
   Calendar, Images, X, ChevronLeft, ChevronRight, ZoomIn,
   CheckCircle, Circle, PlayCircle, Check, Pencil, Plus,
-  Camera, Upload, ExternalLink
+  Camera, Upload, ExternalLink, StarHalf
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,6 +52,42 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; className: string; i
 
 const STYLE_OPTIONS = ['Modern','African Fusion','Minimalist','Luxury','Bohemian','Coastal','Budget-Friendly','Industrial','Scandinavian','Art Deco'];
 const RESPONSE_OPTIONS = ['Within 1 hour','Within 2 hours','Within 4 hours','Same day','Within 24 hours','Within 48 hours'];
+
+// ─── Star Rating Component (with half stars) ──────────────────────────────────
+
+function StarRating({ rating, size = 'w-5 h-5', showCount = false, count = 0 }: {
+  rating: number; size?: string; showCount?: boolean; count?: number;
+}) {
+  const fullStars = Math.floor(rating);
+  const hasHalfStar = rating % 1 >= 0.25 && rating % 1 < 0.75;
+  const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex">
+        {[...Array(fullStars)].map((_, i) => (
+          <Star key={`full-${i}`} className={`${size} fill-amber-400 text-amber-400`} />
+        ))}
+        {hasHalfStar && (
+          <div className="relative">
+            <Star className={`${size} text-amber-400`} />
+            <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+              <Star className={`${size} fill-amber-400 text-amber-400`} />
+            </div>
+          </div>
+        )}
+        {[...Array(emptyStars)].map((_, i) => (
+          <Star key={`empty-${i}`} className={`${size} text-muted`} />
+        ))}
+      </div>
+      {showCount && (
+        <span className="text-sm font-medium ml-1">
+          {rating.toFixed(1)} {count > 0 && `(${count})`}
+        </span>
+      )}
+    </div>
+  );
+}
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────────
 
@@ -103,9 +139,9 @@ function Lightbox({ images, initialIndex, title, onClose }: {
 
 // ─── Inline editable field ────────────────────────────────────────────────────
 
-function InlineEdit({ value, onSave, placeholder, className = '', multiline = false, type = 'text' }: {
+function InlineEdit({ value, onSave, placeholder, className = '', multiline = false, type = 'text', isWhiteText = false }: {
   value: string; onSave: (v: string) => Promise<void>; placeholder?: string;
-  className?: string; multiline?: boolean; type?: string;
+  className?: string; multiline?: boolean; type?: string; isWhiteText?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState(value);
@@ -130,24 +166,29 @@ function InlineEdit({ value, onSave, placeholder, className = '', multiline = fa
         onClick={() => setEditing(true)}
         className={`group relative text-left w-full rounded-lg transition-all hover:bg-primary/5 px-2 py-1 -mx-2 -my-1 ${className}`}
       >
-        <span className={value ? '' : 'text-muted-foreground/60 italic'}>{value || placeholder || 'Click to edit'}</span>
-        <Pencil className="w-3.5 h-3.5 ml-2 inline opacity-0 group-hover:opacity-60 transition-opacity text-primary" />
+        <span className={value ? '' : `${isWhiteText ? 'text-white/60' : 'text-muted-foreground/60'} italic`}>
+          {value || placeholder || 'Click to edit'}
+        </span>
+        <Pencil className={`w-3.5 h-3.5 ml-2 inline opacity-0 group-hover:opacity-60 transition-opacity ${isWhiteText ? 'text-white' : 'text-primary'}`} />
       </button>
     );
   }
 
+  // FIX 1: Use visible background for input fields
+  const inputBgClass = isWhiteText ? 'bg-white/95 text-gray-900' : 'bg-background';
+  
   return (
     <div className="relative">
       {multiline ? (
         <textarea ref={ref as any} value={draft} onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key==='Escape') cancel(); }}
           rows={4}
-          className={`w-full px-3 py-2 border-2 border-primary rounded-lg bg-background resize-none focus:outline-none text-sm ${className}`}
+          className={`w-full px-3 py-2 border-2 border-primary rounded-lg ${inputBgClass} resize-none focus:outline-none text-sm ${className}`}
           placeholder={placeholder}/>
       ) : (
         <input ref={ref as any} type={type} value={draft} onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key==='Enter') save(); if (e.key==='Escape') cancel(); }}
-          className={`w-full px-3 py-2 border-2 border-primary rounded-lg bg-background focus:outline-none text-sm ${className}`}
+          className={`w-full px-3 py-2 border-2 border-primary rounded-lg ${inputBgClass} focus:outline-none text-sm ${className}`}
           placeholder={placeholder}/>
       )}
       <div className="flex gap-2 mt-2">
@@ -155,7 +196,7 @@ function InlineEdit({ value, onSave, placeholder, className = '', multiline = fa
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-md text-xs font-semibold hover:bg-primary/90 transition disabled:opacity-50">
           {saving ? <Loader2 className="w-3 h-3 animate-spin"/> : <Check className="w-3 h-3"/>} Save
         </button>
-        <button onClick={cancel} className="px-3 py-1.5 border rounded-md text-xs hover:bg-muted transition">Cancel</button>
+        <button onClick={cancel} className="px-3 py-1.5 border rounded-md text-xs hover:bg-red-700 transition bg-red-400">Cancel</button>
       </div>
     </div>
   );
@@ -504,6 +545,9 @@ export default function DesignerProfilePage() {
   const [showAvatar,     setShowAvatar]     = useState(false);
   const [showCover,      setShowCover]      = useState(false);
 
+  // FIX 2: Scroll ref for settings tab
+  const tabsRef = useRef<HTMLDivElement>(null);
+
   // ─── Data fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isLoaded) return;
@@ -529,6 +573,17 @@ export default function DesignerProfilePage() {
     };
     load();
   }, [isLoaded, user, navigate, getToken, toast]);
+
+  // FIX 2: Scroll to tabs when settings is clicked
+  useEffect(() => {
+    if (activeTab === 'settings' && tabsRef.current) {
+      // Scroll tabs into view with offset
+      const yOffset = -100; // Adjust this value to control how much above the tabs to scroll
+      const element = tabsRef.current;
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  }, [activeTab]);
 
   // ─── Save helper ────────────────────────────────────────────────────────────
   const saveField = useCallback(async (field: string, value: unknown) => {
@@ -603,24 +658,27 @@ export default function DesignerProfilePage() {
           <div className="container mx-auto px-4 lg:px-8 pb-12">
             <div className="flex flex-col lg:flex-row items-start lg:items-end gap-8">
 
-              {/* Avatar — click to open modal */}
-              <motion.div initial={{opacity:0,y:30}} animate={{opacity:1,y:0}} transition={{duration:0.6}} className="relative group">
-                <Avatar className="w-32 h-32 lg:w-40 lg:h-40 ring-8 ring-white/50 shadow-2xl cursor-pointer" onClick={()=>setShowAvatar(true)}>
-                  <AvatarImage src={designer.avatar||user?.imageUrl} alt={designer.name}/>
-                  <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white">
-                    {designer.name.split(' ').map(n=>n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <button onClick={()=>setShowAvatar(true)}
-                  className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <Camera className="w-7 h-7 text-white drop-shadow-lg"/>
-                </button>
-                //i dont like this verified badge
-                {/* {designer.verified && (
-                  // <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-lg">
-                  //   <CheckCircle2 className="w-8 h-8 text-primary"/>
-                  // </div>
-                )} */}
+              {/* FIX 4: Avatar with proper hover alignment */}
+              <motion.div initial={{opacity:0,y:30}} animate={{opacity:1,y:0}} transition={{duration:0.6}} className="relative">
+                <div className="relative w-32 h-32 lg:w-40 lg:h-40">
+                  <Avatar className="w-full h-full ring-8 ring-white/50 shadow-2xl cursor-pointer group" onClick={()=>setShowAvatar(true)}>
+                    <AvatarImage src={designer.avatar||user?.imageUrl} alt={designer.name}/>
+                    <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white">
+                      {designer.name.split(' ').map(n=>n[0]).join('')}
+                    </AvatarFallback>
+                    {/* Hover overlay - properly aligned */}
+                    <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <Camera className="w-7 h-7 text-white drop-shadow-lg"/>
+                    </div>
+                  </Avatar>
+                  
+                  {/* FIX: Verified badge repositioned to top-right of name section instead of avatar */}
+                  {designer.verified && (
+                    <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1.5 shadow-lg border-2 border-white">
+                      <CheckCircle2 className="w-6 h-6 text-primary"/>
+                    </div>
+                  )}
+                </div>
               </motion.div>
 
               {/* Name + inline tagline */}
@@ -634,27 +692,31 @@ export default function DesignerProfilePage() {
                   )}
                 </div>
 
-                {/* Tagline — inline editable in hero */}
+                {/* Tagline — inline editable in hero with white text support */}
                 <div className="mb-6">
                   <InlineEdit
                     value={designer.tagline||''}
                     placeholder="Click to add your tagline..."
                     onSave={v=>saveField('tagline',v)}
                     className="text-xl lg:text-2xl opacity-90 text-white"
+                    isWhiteText={true}
                   />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-base mb-8">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-5 h-5 flex-shrink-0"/>
-                    <InlineEdit value={designer.location||''} placeholder="Add location" onSave={v=>saveField('location',v)} className="text-white"/>
+                    <InlineEdit 
+                      value={designer.location||''} 
+                      placeholder="Add location" 
+                      onSave={v=>saveField('location',v)} 
+                      className="text-white"
+                      isWhiteText={true}
+                    />
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex">
-                      {[...Array(5)].map((_,i)=>(
-                        <Star key={i} className={`w-5 h-5 ${i<Math.floor(designer.rating)?'fill-amber-400 text-amber-400':'text-white/40'}`}/>
-                      ))}
-                    </div>
+                    {/* FIX 3: Use StarRating component with half stars */}
+                    <StarRating rating={designer.rating} size="w-5 h-5" />
                     <span className="font-bold">{designer.rating.toFixed(1)} ({designer.reviewCount} reviews)</span>
                   </div>
                 </div>
@@ -663,6 +725,7 @@ export default function DesignerProfilePage() {
                   <Button size="lg" variant="secondary" onClick={()=>window.open(`/designer/${designer._id}`,'_blank')}>
                     <Eye className="w-5 h-5 mr-2"/>Preview Public View
                   </Button>
+                  {/* FIX 2: Settings button now triggers scroll */}
                   <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10" onClick={()=>setActiveTab('settings')}>
                     <Settings className="w-5 h-5 mr-2"/>Settings
                   </Button>
@@ -676,7 +739,8 @@ export default function DesignerProfilePage() {
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
       <section className="py-12 bg-gradient-to-b from-background to-muted/30">
         <div className="container mx-auto px-4 lg:px-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+          {/* FIX 2: Add ref for scroll target */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8" ref={tabsRef}>
             <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 h-14">
               <TabsTrigger value="overview"  className="text-base"><BarChart3     className="w-4 h-4 mr-2"/>Overview</TabsTrigger>
               <TabsTrigger value="portfolio" className="text-base"><Briefcase     className="w-4 h-4 mr-2"/>Portfolio</TabsTrigger>
@@ -701,7 +765,10 @@ export default function DesignerProfilePage() {
                     <h3 className="font-semibold text-muted-foreground text-sm">Average Rating</h3>
                     <Star className="w-5 h-5 text-accent fill-accent"/>
                   </div>
-                  <div className="text-4xl font-bold text-accent">{designer.rating.toFixed(1)}</div>
+                  <div className="flex items-baseline gap-2">
+                    <div className="text-4xl font-bold text-accent">{designer.rating.toFixed(1)}</div>
+                    <StarRating rating={designer.rating} size="w-5 h-5" />
+                  </div>
                   <p className="text-sm text-muted-foreground mt-1">from {designer.reviewCount} reviews</p>
                 </Card>
 
@@ -887,7 +954,7 @@ export default function DesignerProfilePage() {
                   <h2 className="font-display text-3xl font-bold">Client Reviews</h2>
                   <p className="text-muted-foreground mt-2">{designer.reviewCount} total reviews • {designer.rating.toFixed(1)} average</p>
                 </div>
-                <div className="flex">{[...Array(5)].map((_,i)=><Star key={i} className={`w-6 h-6 ${i<Math.floor(designer.rating)?'fill-primary text-primary':'text-muted'}`}/>)}</div>
+                <StarRating rating={designer.rating} size="w-6 h-6" />
               </div>
               {designer.reviews?.length>0 ? (
                 <div className="grid gap-6">
@@ -899,7 +966,7 @@ export default function DesignerProfilePage() {
                           <div className="flex justify-between items-start mb-3">
                             <div><h4 className="font-bold">{review.clientName||'Anonymous'}</h4>
                               <p className="text-sm text-muted-foreground">{review.date?formatDate(review.date):'Date not available'}</p></div>
-                            <div className="flex">{[...Array(5)].map((_,i)=><Star key={i} className={`w-4 h-4 ${i<review.rating?'fill-yellow-400 text-yellow-400':'text-muted'}`}/>)}</div>
+                            <StarRating rating={review.rating} size="w-4 h-4" />
                           </div>
                           <p className="leading-relaxed">{review.comment||'No comment'}</p>
                           {review.projectImage && (
