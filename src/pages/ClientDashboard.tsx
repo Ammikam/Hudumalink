@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { SignedIn } from '@clerk/clerk-react';
 import {
   Loader2, Plus, FolderOpen, Clock, CheckCircle2,
-  Users, DollarSign, MapPin, Calendar, X, Check, AlertCircle,
+  Users, DollarSign, MapPin, Calendar, X, Check, AlertCircle, MessageSquare,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout/Layout';
@@ -70,6 +70,7 @@ export default function ClientDashboard() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [acceptingProposal, setAcceptingProposal] = useState<string | null>(null);
   const [rejectingProposal, setRejectingProposal] = useState<string | null>(null);
+  const [unreadCounts, setUnreadCounts]       = useState<Record<string, number>>({});
 
   // ─── Load projects + proposals ──────────────────────────────────────────────
   const fetchProjects = useCallback(async () => {
@@ -83,23 +84,30 @@ export default function ClientDashboard() {
 
       const rawProjects = await api.getUserProjects(token);
 
-      // Fetch proposals for each project in parallel
-      const withProposals = await Promise.all(
-        rawProjects.map(async (proj: any) => {
-          try {
-            const res = await fetch(
-              `http://localhost:5000/api/proposals/project/${proj._id}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            const data = await res.json();
-            return { ...proj, proposals: data.success ? data.proposals : [] };
-          } catch {
-            return { ...proj, proposals: [] };
-          }
-        })
-      );
+      // Fetch proposals for each project + unread message counts in parallel
+      const [withProposals, unreadRes] = await Promise.all([
+        Promise.all(
+          rawProjects.map(async (proj: any) => {
+            try {
+              const res = await fetch(
+                `http://localhost:5000/api/proposals/project/${proj._id}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              const data = await res.json();
+              return { ...proj, proposals: data.success ? data.proposals : [] };
+            } catch {
+              return { ...proj, proposals: [] };
+            }
+          })
+        ),
+        fetch('http://localhost:5000/api/messages/unread-counts', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
 
       setProjects(withProposals);
+      const unreadData = await unreadRes.json();
+      if (unreadData.success) setUnreadCounts(unreadData.unreadCounts || {});
     } catch (err: any) {
       setError(err.message || 'Failed to load projects');
     } finally {
@@ -400,8 +408,16 @@ export default function ClientDashboard() {
 
                             <div className="flex gap-3">
                               <SignedIn>
-                                <Button variant="outline" asChild>
-                                  <Link to={`/projects/${project._id}`}>View Details</Link>
+                                <Button variant="outline" asChild className="relative">
+                                  <Link to={`/projects/${project._id}`}>
+                                    {(unreadCounts[project._id] ?? 0) > 0 && (
+                                      <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-destructive text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                        {(unreadCounts[project._id] ?? 0) > 99 ? '99+' : unreadCounts[project._id]}
+                                      </span>
+                                    )}
+                                    <MessageSquare className="w-4 h-4 mr-2" />
+                                    View Details
+                                  </Link>
                                 </Button>
                               </SignedIn>
 
