@@ -6,26 +6,10 @@ import { Link } from 'react-router-dom';
 import { api } from '@/services/api';
 import { DesignerCard } from '../designers/DesignerCard';
 import { Button } from '../ui/button';
+import type { Designer } from '@/types/designer';
 
-interface Designer {
-  _id: string;
-  id: string;
-  name: string;
-  location: string;
-  avatar: string;
-  coverImage: string;
-  about: string;
-  rating: number;
-  reviewCount: number;
-  responseTime: string;
-  startingPrice: number;
-  projectsCompleted: number;
-  styles: string[];
-  superVerified: boolean;
-  verified: boolean;
-  portfolio: any[];
-  reviews: any[];
-}
+
+
 
 export function FeaturedDesigners() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -195,7 +179,7 @@ export function FeaturedDesigners() {
         >
           {featuredDesigners.map((designer, index) => (
             <motion.div
-              key={designer._id || designer.id}
+              key={designer._id || designer._id}
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}

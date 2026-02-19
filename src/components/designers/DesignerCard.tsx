@@ -5,7 +5,8 @@ import { MapPin, Star, CheckCircle2, Sparkles, Clock, DollarSign, Images } from 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { Designer } from '@/pages/DesignerPage';
+import type { Designer } from '@/types/designer';
+
 
 interface DesignerCardProps {
   designer: Designer;

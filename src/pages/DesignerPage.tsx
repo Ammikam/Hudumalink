@@ -5,27 +5,29 @@ import { Search, Loader2, Users, SlidersHorizontal, X } from 'lucide-react';
 import { Layout } from '../components/Layout/Layout';
 import { DesignerCard } from '../components/designers/DesignerCard';
 import { Card } from '@/components/ui/card';
+import type { Designer } from '@/types/designer';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface Designer {
-  _id: string;
-  name: string;
-  avatar: string;
-  coverImage: string;
-  tagline: string;
-  location: string;
-  verified: boolean;
-  superVerified: boolean;
-  rating: number;
-  reviewCount: number;
-  projectsCompleted: number;
-  responseTime: string;
-  startingPrice: number;
-  styles: string[];
-  portfolioImages: string[];
-  about: string;
-}
+// export interface Designer {
+//   _id: string;
+//   name: string;
+//   avatar: string;
+//   coverImage: string;
+//   tagline: string;
+//   location: string;
+//   verified: boolean;
+//   superVerified: boolean;
+//   rating: number;
+//   reviewCount: number;
+//   projectsCompleted: number;
+//   responseTime: string;
+//   startingPrice: number;
+//   styles: string[];
+//   portfolioImages: string[];
+//   about: string;
+// }
 
 // ─── Filter options ───────────────────────────────────────────────────────────
 
