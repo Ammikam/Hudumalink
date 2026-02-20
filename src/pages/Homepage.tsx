@@ -12,6 +12,7 @@ import { HowItWorks } from '../components/Home/HowitWorks';
 import { Button } from '../components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { ClientTipsTicker } from '@/components/Home/ClientTipsTicker';
 
 interface PlatformStats {
   verifiedDesigners: number;
@@ -53,47 +54,61 @@ export default function HomePage() {
     fetchStats();
   }, []);
 
-  // Fallback stats while loading
   const displayStats = stats ?? {
     verifiedDesigners: 0,
     completedProjects: 0,
     averageRating: 0,
   };
 
-  // Featured project images (before/after if available, otherwise fallback)
-  const beforeImage = stats?.featuredProject?.photos?.[0] ??
-    'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800';
-  const afterImage = stats?.featuredProject?.photos?.[1] ??
-    stats?.featuredProject?.photos?.[0] ??
-    'https://images.unsplash.com/photo-1618221195710-dd6dabb60b29?w=800';
+  const photos = stats?.featuredProject?.photos ?? [];
+  const hasMultiplePhotos = photos.length >= 2;
+  const beforeImage = photos[0] ?? 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800';
+  const afterImage = hasMultiplePhotos
+    ? photos[1]
+    : (photos[0] ?? 'https://images.unsplash.com/photo-1618221195710-dd6dabb60b29?w=800');
 
   return (
     <Layout>
-      {/* Hero Section */}
+      {/* ── Hero ── */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-hero-pattern">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
 
-        <div className="container mx-auto px-4 lg:px-8 py-12 lg:py-20">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left Content */}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20 w-full">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+
+            {/* ── Left column ── */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.55 }}
               className="space-y-6"
             >
-              <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
+              {/*
+                Ticker sits here — inline-flex so it only takes as much width
+                as its content (the pill shape), left-aligned naturally.
+                max-w-full + overflow-hidden prevent it from ever overflowing on mobile.
+              */}
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="inline-flex max-w-full overflow-hidden"
+              >
+                <ClientTipsTicker />
+              </motion.div>
+
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
                 Transform Your Space with{' '}
                 <span className="text-secondary">Kenya's Best</span>{' '}
                 Interior Designers
               </h1>
 
-              <p className="text-lg text-muted-foreground max-w-xl">
+              <p className="text-base sm:text-lg text-muted-foreground max-w-xl">
                 Get matched with verified designers in 24 hours. From modern minimalism to African fusion.
               </p>
 
-              {/* CTA Buttons — primary action is larger */}
-              <div className="flex flex-wrap gap-4 pt-4">
+              {/* CTAs */}
+              <div className="flex flex-wrap gap-3 pt-2">
                 <Link to="/post-project">
                   <Button size="xl" className="shadow-lg hover:shadow-xl transition-shadow">
                     Post Your Project
@@ -107,33 +122,33 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              {/* Real stats */}
-              <div className="flex items-center gap-8 pt-6 text-sm">
+              {/* Stats */}
+              <div className="flex items-center gap-6 sm:gap-8 pt-4 text-sm">
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 ) : (
                   <>
                     <div>
-                      <p className="font-display text-3xl font-bold text-foreground">
+                      <p className="font-display text-2xl sm:text-3xl font-bold text-foreground">
                         {displayStats.verifiedDesigners}+
                       </p>
-                      <p className="text-muted-foreground">Verified Designers</p>
+                      <p className="text-muted-foreground text-xs sm:text-sm">Verified Designers</p>
                     </div>
-                    <div className="w-px h-12 bg-border" />
+                    <div className="w-px h-10 bg-border" />
                     <div>
-                      <p className="font-display text-3xl font-bold text-foreground">
+                      <p className="font-display text-2xl sm:text-3xl font-bold text-foreground">
                         {displayStats.completedProjects.toLocaleString()}+
                       </p>
-                      <p className="text-muted-foreground">Projects Completed</p>
+                      <p className="text-muted-foreground text-xs sm:text-sm">Projects Completed</p>
                     </div>
                     {displayStats.averageRating > 0 && (
                       <>
-                        <div className="w-px h-12 bg-border hidden sm:block" />
+                        <div className="w-px h-10 bg-border hidden sm:block" />
                         <div className="hidden sm:block">
-                          <p className="font-display text-3xl font-bold text-foreground">
+                          <p className="font-display text-2xl sm:text-3xl font-bold text-foreground">
                             {displayStats.averageRating}★
                           </p>
-                          <p className="text-muted-foreground">Average Rating</p>
+                          <p className="text-muted-foreground text-xs sm:text-sm">Average Rating</p>
                         </div>
                       </>
                     )}
@@ -142,51 +157,51 @@ export default function HomePage() {
               </div>
             </motion.div>
 
-            {/* Right - Before/After Slider with featured project */}
+            {/* ── Right column — before/after slider ── */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="relative"
+              transition={{ duration: 0.55, delay: 0.15 }}
+              className="relative mt-4 lg:mt-0"
             >
               <BeforeAfterSlider
                 beforeImage={beforeImage}
                 afterImage={afterImage}
-                className="aspect-[4/3] shadow-strong"
+                className="aspect-[4/3] rounded-2xl shadow-strong w-full"
               />
 
-              {/* Caption bar — shows project location + budget if available */}
+              {/* Caption */}
               {stats?.featuredProject && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-white text-sm">
-                  <p className="font-semibold">{stats.featuredProject.title}</p>
-                  <p className="text-white/80">
-                    {stats.featuredProject.location} · KSh {(stats.featuredProject.budget / 1000000).toFixed(1)}M
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pb-5 text-white pointer-events-none rounded-b-2xl">
+                  <p className="font-semibold text-sm">{stats.featuredProject.title}</p>
+                  <p className="text-white/80 text-xs sm:text-sm">
+                    {stats.featuredProject.location} · KSh {(stats.featuredProject.budget / 1_000_000).toFixed(1)}M
                     {stats.featuredProject.timeline && ` · ${stats.featuredProject.timeline}`}
                   </p>
                 </div>
               )}
 
-              {/* Designer card — now clickable */}
+              {/* Designer badge — hidden on small screens to avoid overflow issues */}
               {stats?.featuredProject?.designer && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
+                  initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.8 }}
-                  className="absolute -bottom-6 -left-6 hidden lg:block"
+                  className="absolute -bottom-6 -right-4 lg:-right-6 hidden md:block z-10"
                 >
                   <Link
                     to={`/designers/${stats.featuredProject.designer._id}`}
-                    className="block bg-card p-4 rounded-2xl shadow-medium hover:shadow-lg transition-shadow"
+                    className="block bg-card p-3 lg:p-4 rounded-2xl shadow-medium hover:shadow-lg transition-shadow"
                   >
                     <div className="flex items-center gap-3">
-                      <Avatar className="w-12 h-12 ring-2 ring-border">
+                      <Avatar className="w-10 h-10 lg:w-12 lg:h-12 ring-2 ring-border flex-shrink-0">
                         <AvatarImage src={stats.featuredProject.designer.avatar} />
                         <AvatarFallback>
                           {stats.featuredProject.designer.name.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-semibold text-foreground flex items-center gap-2">
+                        <p className="font-semibold text-foreground text-sm flex items-center gap-2">
                           {stats.featuredProject.designer.name}
                           {stats.featuredProject.designer.rating >= 4.5 && (
                             <Badge variant="secondary" className="text-xs">
@@ -194,7 +209,7 @@ export default function HomePage() {
                             </Badge>
                           )}
                         </p>
-                        <p className="text-sm text-muted-foreground">Designed this space</p>
+                        <p className="text-xs text-muted-foreground">Designed this space</p>
                       </div>
                     </div>
                   </Link>
@@ -205,30 +220,30 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Quote Calculator */}
-      <section className="py-5 lg:py-5 bg-muted/30">
-        <div className="container mx-auto px-4 lg:px-8">
+      {/* ── Quote Calculator ── */}
+      <section className="py-8 lg:py-10 bg-muted/30">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <QuoteCalculator />
         </div>
       </section>
 
-      {/* Featured Designers */}
+      {/* ── Featured Designers ── */}
       <FeaturedDesigners />
 
-      {/* Inspiration Teaser */}
+      {/* ── Inspiration Teaser ── */}
       <InspirationTeaser />
 
-      {/* How It Works */}
+      {/* ── How It Works ── */}
       <HowItWorks />
 
-      {/* CTA Section */}
+      {/* ── Bottom CTA ── */}
       <section className="py-16 lg:py-24 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 lg:px-8 text-center">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="font-display text-3xl lg:text-5xl font-bold mb-6"
+            className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold mb-5"
           >
             Ready to Transform Your Space?
           </motion.h2>
@@ -237,7 +252,7 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-lg opacity-90 max-w-2xl mx-auto mb-8"
+            className="text-base sm:text-lg opacity-90 max-w-2xl mx-auto mb-8"
           >
             Post your project and receive proposals from Kenya's top designers — typically within 48 hours.
           </motion.p>
