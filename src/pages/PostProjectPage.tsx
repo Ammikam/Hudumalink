@@ -32,7 +32,11 @@ export default function PostProjectPage() {
     budgetMin?: number;
     budgetMax?: number;
     style?: string;
+    designerId?: string; // ← NEW: from "Hire Designer" button
   } | null;
+
+  // Extract suggested designer ID from location state
+  const suggestedDesignerId = prefilled?.designerId;
 
   // Form state
   const [step, setStep] = useState(0);
@@ -58,7 +62,7 @@ export default function PostProjectPage() {
     prefilled?.style ? [prefilled.style] : []
   );
   
-  // Step 3: Contact - ADDED THESE MISSING STATE DECLARATIONS
+  // Step 3: Contact
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -109,21 +113,16 @@ export default function PostProjectPage() {
     setUploadingImages(true);
     
     try {
-      // Create FormData and append files
       const formData = new FormData();
       files.forEach(file => {
         formData.append('images', file);
       });
       
-      // Upload to backend
       const response = await api.uploadProjectImages(formData);
       
       console.log('Upload response:', response);
       
-      // Add uploaded URLs to preview
       setPreviewUrls(prev => [...prev, ...response.urls]);
-      
-      // Keep file references (optional, for local preview)
       setUploadedFiles(prev => [...prev, ...files]);
       
     } catch (error) {
@@ -141,7 +140,6 @@ export default function PostProjectPage() {
     setSubmitting(true);
 
     try {
-      // Get authentication token
       const token = await getToken();
       
       if (!token) {
@@ -166,13 +164,37 @@ export default function PostProjectPage() {
         },
       };
 
-      // Pass token to createProject
+      // Create the project
       const response = await api.createProject(projectData, token);
 
       if (response.success) {
+        const projectId = response.project._id;
+
+        // ✅ NEW: If this project was created from a "Hire Designer" button, send an invite
+        if (suggestedDesignerId) {
+          try {
+            await fetch('http://localhost:5000/api/invites', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                projectId,
+                designerId: suggestedDesignerId,
+              }),
+            });
+            // Silent failure is fine — the project was still created successfully
+          } catch (inviteErr) {
+            console.warn('Failed to send invite, but project created:', inviteErr);
+          }
+        }
+
         navigate('/success', { 
           state: { 
-            message: 'Project posted successfully!',
+            message: suggestedDesignerId 
+              ? 'Project posted & designer invited!' 
+              : 'Project posted successfully!',
             projectTitle: title 
           } 
         });
@@ -249,6 +271,15 @@ export default function PostProjectPage() {
               />
             </div>
           </Card>
+
+          {/* ✅ NEW: Show notice if inviting a specific designer */}
+          {suggestedDesignerId && (
+            <Card className="p-4 mb-6 bg-blue-50 border-blue-200">
+              <p className="text-sm text-blue-800">
+                📩 <strong>Direct Invite:</strong> This designer will be notified when you submit.
+              </p>
+            </Card>
+          )}
 
           {/* Form Steps */}
           <motion.div
