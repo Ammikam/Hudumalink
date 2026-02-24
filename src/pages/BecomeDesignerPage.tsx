@@ -83,7 +83,8 @@ export default function BecomeDesignerPage() {
 
         if (data.success) {
           setExistingStatus(data.status);
-          if (data.status === 'approved') navigate('/designer/open-projects');
+          // Don't auto-redirect on approved - let them see the pending screen
+          // if (data.status === 'approved') navigate('/designer/open-projects');
         }
       } catch (err) {
         console.error('Failed to check designer status:', err);
@@ -93,7 +94,7 @@ export default function BecomeDesignerPage() {
     };
 
     if (isLoaded) checkStatus();
-  }, [userId, isLoaded, getToken, navigate]);
+  }, [userId, isLoaded, getToken]);
 
   const toggleStyle = (style: string) => {
     setFormData(prev => ({

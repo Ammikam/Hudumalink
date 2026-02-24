@@ -25,6 +25,7 @@ import ProjectDetailPage from "./pages/ClientProjectDetailPage";
 import DesignerProjectDetailPage from "./pages/designerpages/DesignerProjectDetailPage";
 import PublicDesignerProfile from "./pages/PublicDesignerProfile";
 import BecomeDesignerPage from "./pages/BecomeDesignerPage";
+import ApplicationPendingPage from '@/pages/ApplicationPendingPage';
 
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/success" element={<SuccessPage />} />
               <Route path="/designers/:id" element={<PublicDesignerProfile />} />
               <Route path="/become-designer" element={<BecomeDesignerPage />} />
+              <Route path="/designer/application-pending" element={<ApplicationPendingPage />} />
 
               {/* Client Dashboard */}
               <Route path="/dashboard/client" element={<ClientDashboard />} />

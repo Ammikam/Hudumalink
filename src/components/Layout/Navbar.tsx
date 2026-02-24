@@ -138,56 +138,58 @@ export function Navbar() {
               {isDarkMode ? <Sun /> : <Moon />}
             </Button>
 
-            {/* Role Switcher - only show if approved designer */}
-            {isApprovedDesigner && (
-              <SignedIn>
-                <div className="hidden lg:block relative">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowRoleSwitch(!showRoleSwitch)}
-                    className="gap-2"
-                  >
-                    {isDesignerMode ? (
-                      <>
-                        <Briefcase className="w-4 h-4" /> Designer
-                      </>
-                    ) : (
-                      <>
-                        <User className="w-4 h-4" /> Client
-                      </>
+            {/* Role Switcher/Dropdown */}
+            <SignedIn>
+              <div className="hidden lg:block relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowRoleSwitch(!showRoleSwitch)}
+                  className="gap-2"
+                >
+                  {isDesignerMode ? (
+                    <>
+                      <Briefcase className="w-4 h-4" /> Designer
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-4 h-4" /> Client
+                    </>
+                  )}
+                  <ChevronDown
+                    className={cn(
+                      'w-4 h-4 transition-transform',
+                      showRoleSwitch && 'rotate-180'
                     )}
-                    <ChevronDown
-                      className={cn(
-                        'w-4 h-4 transition-transform',
-                        showRoleSwitch && 'rotate-180'
-                      )}
-                    />
-                  </Button>
+                  />
+                </Button>
 
-                  <AnimatePresence>
-                    {showRoleSwitch && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowRoleSwitch(false)}
-                        />
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="absolute right-0 mt-2 w-56 bg-background border rounded-xl shadow-xl z-50"
-                        >
-                          <div className="p-2 space-y-1">
+                <AnimatePresence>
+                  {showRoleSwitch && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowRoleSwitch(false)}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute right-0 mt-2 w-56 bg-background border rounded-xl shadow-xl z-50"
+                      >
+                        <div className="p-2 space-y-1">
+                          {!isDesignerMode && (
                             <Link
                               to="/dashboard/client"
                               onClick={() => setShowRoleSwitch(false)}
                               className="flex gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
                             >
                               <User className="w-5 h-5" />
-                              <span className="font-medium">Client View</span>
+                              <span className="font-medium">Client Dashboard</span>
                             </Link>
+                          )}
 
+                          {isApprovedDesigner ? (
                             <Link
                               to="/designer/open-projects"
                               onClick={() => setShowRoleSwitch(false)}
@@ -196,31 +198,23 @@ export function Navbar() {
                               <Briefcase className="w-5 h-5" />
                               <span className="font-medium">Designer View</span>
                             </Link>
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </SignedIn>
-            )}
-
-            {/* Become a Designer CTA - only show if NOT an approved designer */}
-            {!isApprovedDesigner && !isDesignerMode && (
-              <SignedIn>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  className="hidden lg:flex"
-                >
-                  <Link to="/become-designer">
-                    <Briefcase className="w-4 h-4 mr-2" />
-                    Become a Designer
-                  </Link>
-                </Button>
-              </SignedIn>
-            )}
+                          ) : (
+                            <Link
+                              to="/become-designer"
+                              onClick={() => setShowRoleSwitch(false)}
+                              className="flex gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+                            >
+                              <Briefcase className="w-5 h-5" />
+                              <span className="font-medium">Become a Designer</span>
+                            </Link>
+                          )}
+                        </div>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+            </SignedIn>
 
             {/* Auth */}
             <SignedOut>
@@ -272,35 +266,25 @@ export function Navbar() {
                 </Link>
               ))}
 
-              {/* Become a Designer - mobile */}
-              {!isApprovedDesigner && !isDesignerMode && (
-                <SignedIn>
-                  <Link
-                    to="/become-designer"
-                    onClick={() => setIsOpen(false)}
-                    className="block py-2 text-primary font-medium"
-                  >
-                    <Briefcase className="w-4 h-4 inline mr-2" />
-                    Become a Designer
-                  </Link>
-                </SignedIn>
-              )}
+              {/* Become a Designer - mobile (removed, now in dropdown) */}
 
               {/* Role switcher - mobile */}
-              {isApprovedDesigner && (
-                <SignedIn>
-                  <div className="pt-3 mt-3 border-t space-y-2">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide px-2">
-                      Switch View
-                    </p>
+              <SignedIn>
+                <div className="pt-3 mt-3 border-t space-y-2">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide px-2">
+                    Switch View
+                  </p>
+                  {!isDesignerMode && (
                     <Link
                       to="/dashboard/client"
                       onClick={() => setIsOpen(false)}
                       className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted"
                     >
                       <User className="w-4 h-4" />
-                      <span>Client View</span>
+                      <span>Client Dashboard</span>
                     </Link>
+                  )}
+                  {isApprovedDesigner ? (
                     <Link
                       to="/designer/open-projects"
                       onClick={() => setIsOpen(false)}
@@ -309,9 +293,18 @@ export function Navbar() {
                       <Briefcase className="w-4 h-4" />
                       <span>Designer View</span>
                     </Link>
-                  </div>
-                </SignedIn>
-              )}
+                  ) : (
+                    <Link
+                      to="/become-designer"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted"
+                    >
+                      <Briefcase className="w-4 h-4" />
+                      <span>Become a Designer</span>
+                    </Link>
+                  )}
+                </div>
+              </SignedIn>
             </motion.div>
           )}
         </AnimatePresence>
