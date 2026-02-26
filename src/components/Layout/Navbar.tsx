@@ -17,6 +17,7 @@ const designerNavLinks = [
   { href: '/designer/invites', label: 'Invites' },
   { href: '/designer/proposals', label: 'My Proposals' },
   { href: '/designer/active-projects', label: 'Active Projects' },
+  { href: '/designer/add-inspiration', label: 'Add Inspiration' },
   { href: '/designer/profile', label: 'My Profile' },
   { href: '/designer/earnings', label: 'Earnings & Reviews' },
 ];
