@@ -22,6 +22,78 @@ const DESIGN_STYLES = [
   'Scandinavian', 'Art Deco', 'Contemporary', 'Traditional'
 ];
 
+
+/**
+ * Aspect Ratio Guide Component
+ * Shows designers the optimal crop/format for their images
+ */
+function AspectRatioGuide() {
+  return (
+    <div className="bg-blue-50 dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-5 mb-6">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+          <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-2">
+            📐 Image Guidelines for Best Quality
+          </h4>
+          <ul className="space-y-1.5 text-sm text-blue-800 dark:text-blue-200">
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
+              <span>
+                <strong>Aspect Ratio:</strong> Portrait (4:5 ratio) works best, for example, 800×1000px or 1600×2000px
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
+              <span>
+                <strong>Minimum Size:</strong> 800×1000px (larger is better for detail views)
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
+              <span>
+                <strong>Format:</strong> JPG or PNG (we'll automatically optimize for web)
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
+              <span>
+                <strong>Quality:</strong> High-resolution, well-lit photos show your work best
+              </span>
+            </li>
+          </ul>
+          
+          {/* Visual Guide */}
+          <div className="mt-4 flex items-center gap-3">
+            <div className="text-center">
+              <div className="w-16 h-20 bg-green-200 dark:bg-green-800 rounded border-2 border-green-500 flex items-center justify-center text-xs font-bold text-green-700 dark:text-green-200">
+                4:5
+              </div>
+              <p className="text-xs text-green-700 dark:text-green-300 mt-1 font-semibold">✓ Perfect</p>
+            </div>
+            <div className="text-center">
+              <div className="w-24 h-16 bg-amber-200 dark:bg-amber-800 rounded border-2 border-amber-500 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-200">
+                16:9
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">⚠️ Will crop</p>
+            </div>
+            <div className="text-center">
+              <div className="w-20 h-20 bg-red-200 dark:bg-red-800 rounded border-2 border-red-500 flex items-center justify-center text-xs font-bold text-red-700 dark:text-red-200">
+                1:1
+              </div>
+              <p className="text-xs text-red-700 dark:text-red-300 mt-1">✗ Avoid</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AddInspirationPage() {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -276,6 +348,8 @@ export default function AddInspirationPage() {
                     Upload high-quality images showing the transformation
                   </p>
                 </div>
+
+                <AspectRatioGuide />
 
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Before Image */}

@@ -1,11 +1,12 @@
-// src/components/Inspiration/InspirationCard.tsx - UPDATED
-import { useState, useEffect } from 'react';
+// src/components/Inspiration/InspirationCard.tsx - WITH OPTIMIZED IMAGES
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Eye, User, Sparkles, CheckCircle2 } from 'lucide-react';
 import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useStore } from '../../store/use-store';
 import { cn } from '../../lib/utils';
 import { InspirationDetailModal } from './InspirationDetailModal';
@@ -28,7 +29,7 @@ interface InspirationCardProps {
     verified?: boolean;
     likes?: number;
     views?: number;
-    isPreferred?: boolean; // For personalized feed
+    isPreferred?: boolean;
   };
   index?: number;
 }
@@ -44,11 +45,6 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
   const handleSave = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleSaveIdea(inspiration._id || inspiration.id || '');
-  };
-
-  const handleImageError = () => {
-    console.error('Image failed to load for inspiration:', inspiration.title);
-    setImageError(true);
   };
 
   const handleViewDesigner = (e: React.MouseEvent) => {
@@ -98,8 +94,14 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
           </div>
         )}
 
-        {/* Before/After Slider or Single Image */}
-        <div className="aspect-[4/5] bg-muted">
+        {/* 
+          OPTIMIZED IMAGES: 
+          - Uses 'card' size (800x1000) for desktop masonry grid
+          - Cloudinary auto-optimizes format (WebP for supported browsers)
+          - Lazy loading built-in
+          - Blur placeholder while loading
+        */}
+        <div className="aspect-[4/5] bg-muted relative">
           {beforeImage && afterImage && beforeImage !== afterImage ? (
             <BeforeAfterSlider
               beforeImage={beforeImage}
@@ -107,11 +109,14 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
               className="w-full h-full"
             />
           ) : (
-            <img
+            <OptimizedImage
               src={beforeImage || afterImage}
               alt={inspiration.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              onError={handleImageError}
+              preset="inspiration"
+              size="card"
+              className="w-full h-full"
+              objectFit="cover"
+              showPlaceholder
             />
           )}
           
