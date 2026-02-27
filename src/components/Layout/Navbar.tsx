@@ -47,7 +47,7 @@ export function Navbar() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-        
+
         setIsApprovedDesigner(data.success && data.status === 'approved');
       } catch (err) {
         console.error('Failed to check designer status:', err);
@@ -179,22 +179,28 @@ export function Navbar() {
                         className="absolute right-0 mt-2 w-56 bg-background border rounded-xl shadow-xl z-50"
                       >
                         <div className="p-2 space-y-1">
-                          {!isDesignerMode && (
-                            <Link
-                              to="/dashboard/client"
-                              onClick={() => setShowRoleSwitch(false)}
-                              className="flex gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
-                            >
-                              <User className="w-5 h-5" />
-                              <span className="font-medium">Client Dashboard</span>
-                            </Link>
-                          )}
+                          {/* Always show Client View */}
+                          <Link
+                            to="/dashboard/client"
+                            onClick={() => setShowRoleSwitch(false)}
+                            className={cn(
+                              'flex gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors',
+                              !isDesignerMode && 'bg-muted'
+                            )}
+                          >
+                            <User className="w-5 h-5" />
+                            <span className="font-medium">Client View</span>
+                          </Link>
 
+                          {/* Designer View or Become a Designer CTA */}
                           {isApprovedDesigner ? (
                             <Link
                               to="/designer/open-projects"
                               onClick={() => setShowRoleSwitch(false)}
-                              className="flex gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors"
+                              className={cn(
+                                'flex gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors',
+                                isDesignerMode && 'bg-muted'
+                              )}
                             >
                               <Briefcase className="w-5 h-5" />
                               <span className="font-medium">Designer View</span>
@@ -267,29 +273,35 @@ export function Navbar() {
                 </Link>
               ))}
 
-              {/* Become a Designer - mobile (removed, now in dropdown) */}
-
               {/* Role switcher - mobile */}
               <SignedIn>
                 <div className="pt-3 mt-3 border-t space-y-2">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide px-2">
                     Switch View
                   </p>
-                  {!isDesignerMode && (
-                    <Link
-                      to="/dashboard/client"
-                      onClick={() => setIsOpen(false)}
-                      className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted"
-                    >
-                      <User className="w-4 h-4" />
-                      <span>Client Dashboard</span>
-                    </Link>
-                  )}
+
+                  {/* Always show Client View */}
+                  <Link
+                    to="/dashboard/client"
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted',
+                      !isDesignerMode && 'bg-muted'
+                    )}
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Client View</span>
+                  </Link>
+
+                  {/* Designer View or Become a Designer CTA */}
                   {isApprovedDesigner ? (
                     <Link
                       to="/designer/open-projects"
                       onClick={() => setIsOpen(false)}
-                      className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted"
+                      className={cn(
+                        'flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted',
+                        isDesignerMode && 'bg-muted'
+                      )}
                     >
                       <Briefcase className="w-4 h-4" />
                       <span>Designer View</span>
