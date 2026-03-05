@@ -1,4 +1,4 @@
-// src/components/Layout/Navbar.tsx
+// src/components/Layout/Navbar.tsx - WITH PROFILE MENU
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -233,7 +233,24 @@ export function Navbar() {
             </SignedOut>
 
             <SignedIn>
-              <UserButton afterSignOutUrl="/" />
+              {/* ✅ UserButton with custom menu items including Profile */}
+              <UserButton 
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: "w-10 h-10 rounded-full ring-2 ring-border hover:ring-primary transition-all"
+                  }
+                }}
+              >
+                {/* ✅ Add custom Profile menu item */}
+                <UserButton.MenuItems>
+                  <UserButton.Link
+                    label="Profile Settings"
+                    labelIcon={<User className="w-4 h-4" />}
+                    href="/profile"
+                  />
+                </UserButton.MenuItems>
+              </UserButton>
             </SignedIn>
 
             {/* Mobile Toggle */}
@@ -316,6 +333,16 @@ export function Navbar() {
                       <span>Become a Designer</span>
                     </Link>
                   )}
+
+                  {/* ✅ Profile link for mobile */}
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Profile Settings</span>
+                  </Link>
                 </div>
               </SignedIn>
             </motion.div>
