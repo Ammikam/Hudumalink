@@ -1,6 +1,6 @@
-// src/components/projects/ProjectCard.tsx - WITH MODAL INTEGRATION
+// src/components/projects/ProjectCard.tsx
 import { useState } from 'react';
-import { MapPin, DollarSign, Calendar, Images, Check, Eye } from 'lucide-react';
+import { MapPin, DollarSign, Calendar, Images, Check, Eye, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,8 @@ interface ProjectCardProps {
   unreadCount?: number;
   onAction?: () => void;
   actionLabel?: string;
+  /** Shows an amber "Direct Invite" badge on the hero image */
+  directInvite?: boolean;
 }
 
 export function ProjectCard({
@@ -42,16 +44,16 @@ export function ProjectCard({
   unreadCount,
   onAction,
   actionLabel = 'Send Proposal',
+  directInvite = false,
 }: ProjectCardProps) {
   const [showModal, setShowModal] = useState(false);
 
-  // Determine which photo to show
   const heroPhoto = project.beforePhotos?.[0] || project.photos?.[0];
-  const totalPhotos = (project.beforePhotos?.length || 0) + (project.inspirationPhotos?.length || 0) || project.photos?.length || 0;
-
-  const handleCardClick = () => {
-    setShowModal(true);
-  };
+  const totalPhotos =
+    (project.beforePhotos?.length || 0) +
+    (project.inspirationPhotos?.length || 0) ||
+    project.photos?.length ||
+    0;
 
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -60,12 +62,12 @@ export function ProjectCard({
 
   return (
     <>
-      <Card 
+      <Card
         className={cn(
           'group overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full cursor-pointer',
           variant === 'active' && 'border-2 border-primary/20'
         )}
-        onClick={handleCardClick}
+        onClick={() => setShowModal(true)}
       >
         {/* Hero Image */}
         <div className="relative h-56 overflow-hidden bg-muted">
@@ -84,7 +86,7 @@ export function ProjectCard({
             </div>
           )}
 
-          {/* Photo Count Badge */}
+          {/* Photo Count */}
           {totalPhotos > 0 && (
             <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-sm text-white text-xs px-2.5 py-1.5 rounded-full flex items-center gap-1.5 font-medium">
               <Images className="w-3.5 h-3.5" />
@@ -92,8 +94,18 @@ export function ProjectCard({
             </div>
           )}
 
-          {/* Status Badge (for active projects) */}
-          {variant === 'active' && (
+          {/* Direct Invite Badge */}
+          {directInvite && (
+            <div className="absolute top-3 left-3">
+              <Badge className="bg-amber-500 text-white shadow-lg gap-1.5">
+                <Users className="w-3 h-3" />
+                Direct Invite
+              </Badge>
+            </div>
+          )}
+
+          {/* Active badge */}
+          {variant === 'active' && !directInvite && (
             <div className="absolute top-3 left-3">
               <Badge className="bg-blue-500 text-white shadow-lg">
                 In Progress
@@ -112,7 +124,6 @@ export function ProjectCard({
 
         {/* Content */}
         <div className="p-5 flex flex-col flex-1">
-          {/* Title & Description */}
           <div className="mb-4">
             <h3 className="text-xl font-bold mb-2 line-clamp-1 group-hover:text-primary transition-colors">
               {project.title}
@@ -122,7 +133,6 @@ export function ProjectCard({
             </p>
           </div>
 
-          {/* Metadata Grid */}
           <div className="space-y-2.5 mb-4 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <MapPin className="w-4 h-4 flex-shrink-0" />
@@ -140,7 +150,6 @@ export function ProjectCard({
             </div>
           </div>
 
-          {/* Styles Tags */}
           {project.styles?.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-4">
               {project.styles.slice(0, 3).map(style => (
@@ -156,9 +165,7 @@ export function ProjectCard({
             </div>
           )}
 
-          {/* Footer */}
           <div className="mt-auto pt-4 border-t flex items-center justify-between gap-3">
-            {/* Client Info (for open projects) */}
             {variant === 'open' && project.client && (
               <div className="flex items-center gap-2 min-w-0">
                 <Avatar className="w-6 h-6 flex-shrink-0">
@@ -173,7 +180,6 @@ export function ProjectCard({
               </div>
             )}
 
-            {/* Action Button */}
             <Button
               size="sm"
               variant={alreadySent ? 'secondary' : 'default'}
@@ -201,7 +207,6 @@ export function ProjectCard({
         </div>
       </Card>
 
-      {/* Detail Modal */}
       {showModal && (
         <ProjectDetailModal
           project={project}
