@@ -2,11 +2,12 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SignedIn } from '@clerk/clerk-react';
 import {
   Loader2, Plus, FolderOpen, Clock, CheckCircle2,
   Users, DollarSign, MapPin, Calendar, X, Check, AlertCircle, MessageSquare,
+  TrendingUp, Briefcase, ArrowRight, Sparkles,
 } from 'lucide-react';
 
 import { Layout } from '@/components/Layout/Layout';
@@ -58,53 +59,71 @@ interface DashboardStats {
   pendingProposals: number;
 }
 
+// ── Status config ──────────────────────────────────────────────────────────────
+const STATUS_CONFIG = {
+  open:        { label: 'Open',        dot: 'bg-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  in_progress: { label: 'In Progress', dot: 'bg-blue-400',    badge: 'bg-blue-50 text-blue-700 border-blue-200'           },
+  completed:   { label: 'Completed',   dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground border-border' },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.open;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.badge}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  );
+}
+
+const containerVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 18 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.35 } },
+};
+
 export default function ClientDashboard() {
   const { userId, getToken, isLoaded } = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
 
-  const [projects, setProjects]               = useState<Project[]>([]);
-  const [loading, setLoading]                 = useState(true);
-  const [error, setError]                     = useState('');
-  const [activeTab, setActiveTab]             = useState('all');
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [projects, setProjects]                   = useState<Project[]>([]);
+  const [loading, setLoading]                     = useState(true);
+  const [error, setError]                         = useState('');
+  const [activeTab, setActiveTab]                 = useState('all');
+  const [selectedProject, setSelectedProject]     = useState<Project | null>(null);
   const [acceptingProposal, setAcceptingProposal] = useState<string | null>(null);
   const [rejectingProposal, setRejectingProposal] = useState<string | null>(null);
-  const [unreadCounts, setUnreadCounts]       = useState<Record<string, number>>({});
+  const [unreadCounts, setUnreadCounts]           = useState<Record<string, number>>({});
 
-  // ─── Load projects + proposals ──────────────────────────────────────────────
+  // ─── Fetch ───────────────────────────────────────────────────────────────────
   const fetchProjects = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
     setError('');
-
     try {
       const token = await getToken();
       if (!token) throw new Error('Authentication failed');
-
       const rawProjects = await api.getUserProjects(token);
-
-      // Fetch proposals for each project + unread message counts in parallel
       const [withProposals, unreadRes] = await Promise.all([
         Promise.all(
           rawProjects.map(async (proj: any) => {
             try {
-              const res = await fetch(
-                `http://localhost:5000/api/proposals/project/${proj._id}`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
+              const res = await fetch(`http://localhost:5000/api/proposals/project/${proj._id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
               const data = await res.json();
               return { ...proj, proposals: data.success ? data.proposals : [] };
-            } catch {
-              return { ...proj, proposals: [] };
-            }
+            } catch { return { ...proj, proposals: [] }; }
           })
         ),
         fetch('http://localhost:5000/api/messages/unread-counts', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
-
       setProjects(withProposals);
       const unreadData = await unreadRes.json();
       if (unreadData.success) setUnreadCounts(unreadData.unreadCounts || {});
@@ -115,19 +134,15 @@ export default function ClientDashboard() {
     }
   }, [userId, getToken]);
 
-  useEffect(() => {
-    if (isLoaded && userId) fetchProjects();
-  }, [isLoaded, userId, fetchProjects]);
+  useEffect(() => { if (isLoaded && userId) fetchProjects(); }, [isLoaded, userId, fetchProjects]);
 
-  // ─── Stats ──────────────────────────────────────────────────────────────────
+  // ─── Stats ───────────────────────────────────────────────────────────────────
   const stats: DashboardStats = useMemo(() => ({
-    totalProjects:    projects.length,
-    activeProjects:   projects.filter(p => p.status === 'open' || p.status === 'in_progress').length,
+    totalProjects:     projects.length,
+    activeProjects:    projects.filter(p => p.status === 'open' || p.status === 'in_progress').length,
     completedProjects: projects.filter(p => p.status === 'completed').length,
-    totalBudget:      projects.reduce((s, p) => s + p.budget, 0),
-    pendingProposals: projects.reduce(
-      (s, p) => s + (p.proposals?.filter(pr => pr.status === 'pending').length ?? 0), 0
-    ),
+    totalBudget:       projects.reduce((s, p) => s + p.budget, 0),
+    pendingProposals:  projects.reduce((s, p) => s + (p.proposals?.filter(pr => pr.status === 'pending').length ?? 0), 0),
   }), [projects]);
 
   const filteredProjects = useMemo(() => projects.filter(p => {
@@ -136,412 +151,484 @@ export default function ClientDashboard() {
     return true;
   }), [projects, activeTab]);
 
-  // ─── Accept proposal ────────────────────────────────────────────────────────
+  // ─── Actions ─────────────────────────────────────────────────────────────────
   const handleAcceptProposal = async (proposalId: string) => {
     setAcceptingProposal(proposalId);
     try {
       const token = await getToken();
-      const res = await fetch(
-        `http://localhost:5000/api/proposals/${proposalId}/accept`,
-        { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }
-      );
+      const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/accept`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
-
       if (res.ok) {
         toast({ title: '🎉 Designer Hired!', description: 'Other proposals have been rejected automatically.' });
         setSelectedProject(null);
-        // ✅ Refresh data without full page reload
         await fetchProjects();
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to hire designer', variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to hire designer', variant: 'destructive' });
-    } finally {
-      setAcceptingProposal(null);
-    }
+    } catch { toast({ title: 'Error', description: 'Failed to hire designer', variant: 'destructive' }); }
+    finally { setAcceptingProposal(null); }
   };
 
-  // ─── Reject proposal ────────────────────────────────────────────────────────
   const handleRejectProposal = async (proposalId: string) => {
     setRejectingProposal(proposalId);
     try {
       const token = await getToken();
-      const res = await fetch(
-        `http://localhost:5000/api/proposals/${proposalId}/reject`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ reason: '' }),
-        }
-      );
+      const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/reject`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: '' }),
+      });
       const data = await res.json();
-
       if (res.ok) {
         toast({ title: 'Proposal Rejected', description: 'The designer has been notified.' });
-        // Update modal state locally — no full reload needed
-        setSelectedProject(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            proposals: prev.proposals.map(p =>
-              p._id === proposalId ? { ...p, status: 'rejected' as const } : p
-            ),
-          };
-        });
+        setSelectedProject(prev => prev ? {
+          ...prev,
+          proposals: prev.proposals.map(p => p._id === proposalId ? { ...p, status: 'rejected' as const } : p),
+        } : null);
         await fetchProjects();
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to reject proposal', variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to reject proposal', variant: 'destructive' });
-    } finally {
-      setRejectingProposal(null);
-    }
-  };
-
-  // ─── Helpers ────────────────────────────────────────────────────────────────
-  const getStatusBadge = (status: string) => {
-    const map = {
-      open:        { label: 'Open',        className: 'bg-green-100 text-green-800' },
-      in_progress: { label: 'In Progress', className: 'bg-blue-100  text-blue-800'  },
-      completed:   { label: 'Completed',   className: 'bg-gray-100  text-gray-800'  },
-    };
-    const v = map[status as keyof typeof map] ?? map.open;
-    return <Badge className={v.className}>{v.label}</Badge>;
+    } catch { toast({ title: 'Error', description: 'Failed to reject proposal', variant: 'destructive' }); }
+    finally { setRejectingProposal(null); }
   };
 
   const formatDate = (ds: string) =>
     new Date(ds).toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' });
 
-  // ─── Guards ─────────────────────────────────────────────────────────────────
-  if (!isLoaded) {
-    return <Layout><div className="container mx-auto py-32 text-center"><Loader2 className="w-8 h-8 animate-spin mx-auto" /></div></Layout>;
-  }
+  // ─── Guards ──────────────────────────────────────────────────────────────────
+  if (!isLoaded) return (
+    <Layout><div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div></Layout>
+  );
 
-  if (!userId) {
-    return (
-      <Layout>
-        <div className="container mx-auto py-32 text-center">
-          <h1 className="font-display text-3xl font-bold mb-4">Please Sign In</h1>
-          <Button size="lg" asChild><Link to="/sign-in">Sign In</Link></Button>
-        </div>
-      </Layout>
-    );
-  }
+  if (!userId) return (
+    <Layout>
+      <div className="container mx-auto py-32 text-center">
+        <h1 className="font-display text-3xl font-bold mb-4">Please Sign In</h1>
+        <Button size="lg" asChild><Link to="/sign-in">Sign In</Link></Button>
+      </div>
+    </Layout>
+  );
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-muted/30 to-transparent">
-        <div className="container mx-auto px-4 lg:px-8 py-12">
+      <div className="min-h-screen bg-gradient-to-b from-muted/20 to-transparent">
 
-          {/* Header */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div>
-                <h1 className="font-display text-4xl lg:text-5xl font-bold mb-2">
-                  Welcome back, {user?.firstName || 'Client'}!
+        {/* ── Page header ── */}
+        <div className="border-b bg-background/80 backdrop-blur-md sticky top-16 lg:top-20 z-30">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold truncate">
+                  Welcome back,{' '}
+                  <span className="text-secondary">{user?.firstName || 'Client'}</span>
                 </h1>
-                <p className="text-lg text-muted-foreground">
-                  Manage your projects and hire the perfect designer
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block mt-0.5">
+                  Manage your projects and find the perfect designer
                 </p>
               </div>
-              <Button size="lg" className="btn-primary shadow-soft" asChild>
-                <Link to="/post-project"><Plus className="w-5 h-5 mr-2" />Post New Project</Link>
-              </Button>
+              <Link to="/post-project" className="flex-shrink-0">
+                <Button size="sm" className="gap-1.5 shadow-sm">
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Post Project</span>
+                  <span className="sm:hidden">Post</span>
+                </Button>
+              </Link>
             </div>
-          </motion.div>
+          </div>
+        </div>
 
-          {/* Stats */}
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+
+          {/* ── Stats grid ── */}
           {!loading && projects.length > 0 && (
-            <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-12">
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 mb-8"
+            >
               {[
-                { label: 'Total Projects',   value: stats.totalProjects,             icon: FolderOpen   },
-                { label: 'Active',           value: stats.activeProjects,            icon: Clock        },
-                { label: 'Completed',        value: stats.completedProjects,         icon: CheckCircle2 },
-                { label: 'Proposals',        value: stats.pendingProposals,          icon: Users        },
-                { label: 'Total Budget',     value: formatCurrency(stats.totalBudget), icon: DollarSign },
+                { label: 'Total',       value: stats.totalProjects,               icon: Briefcase,   color: 'text-primary',   bg: 'bg-primary/8'   },
+                { label: 'Active',      value: stats.activeProjects,              icon: TrendingUp,  color: 'text-blue-600',  bg: 'bg-blue-50'      },
+                { label: 'Completed',   value: stats.completedProjects,           icon: CheckCircle2,color: 'text-emerald-600',bg: 'bg-emerald-50'  },
+                { label: 'Proposals',   value: stats.pendingProposals,            icon: Users,       color: 'text-secondary', bg: 'bg-secondary/8' },
+                { label: 'Budget',      value: formatCurrency(stats.totalBudget), icon: DollarSign,  color: 'text-primary',   bg: 'bg-primary/8',  span: true },
               ].map((stat, i) => (
-                <Card key={i} className="card-premium p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <stat.icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.label}</p>
-                      <p className="text-3xl font-bold">{stat.value}</p>
-                    </div>
+                <motion.div
+                  key={i}
+                  variants={itemVariants}
+                  className={`bg-background rounded-2xl border border-border/60 p-4 lg:p-5 flex items-center gap-3 ${stat.span ? 'col-span-2 sm:col-span-1' : ''}`}
+                >
+                  <div className={`w-9 h-9 lg:w-10 lg:h-10 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
+                    <stat.icon className={`w-4 h-4 lg:w-5 lg:h-5 ${stat.color}`} />
                   </div>
-                </Card>
+                  <div className="min-w-0">
+                    <p className="text-muted-foreground text-xs truncate">{stat.label}</p>
+                    <p className="font-bold text-base lg:text-xl leading-tight truncate">{stat.value}</p>
+                  </div>
+                </motion.div>
               ))}
             </motion.div>
           )}
 
-          {/* Loading */}
+          {/* ── Loading ── */}
           {loading && (
-            <div className="text-center py-20">
-              <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary" />
-              <p className="mt-4 text-muted-foreground">Loading your projects...</p>
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Loader2 className="w-7 h-7 animate-spin text-primary" />
+              </div>
+              <p className="text-muted-foreground text-sm">Loading your projects…</p>
             </div>
           )}
 
-          {/* Error */}
+          {/* ── Error ── */}
           {error && (
             <Alert variant="destructive" className="mb-6">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="flex items-center justify-between">
+              <AlertDescription className="flex items-center justify-between gap-4">
                 {error}
                 <Button size="sm" variant="outline" onClick={fetchProjects}>Retry</Button>
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Empty */}
+          {/* ── Empty state ── */}
           {!loading && projects.length === 0 && (
-            <Card className="p-16 text-center">
-              <FolderOpen className="w-20 h-20 mx-auto mb-6 text-muted-foreground" />
-              <h2 className="text-3xl font-bold mb-4">No projects yet</h2>
-              <p className="text-lg text-muted-foreground mb-8">
-                Start your design journey by posting your first project
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center py-20 text-center px-4"
+            >
+              <div className="w-20 h-20 rounded-3xl bg-primary/8 flex items-center justify-center mb-6">
+                <Sparkles className="w-10 h-10 text-primary" />
+              </div>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold mb-3">Start your design journey</h2>
+              <p className="text-muted-foreground max-w-md mb-8 text-sm sm:text-base">
+                Post your first project and get proposals from Kenya's best interior designers within 48 hours.
               </p>
-              <Button size="lg" asChild>
-                <Link to="/post-project"><Plus className="w-5 h-5 mr-2" />Post Your First Project</Link>
-              </Button>
-            </Card>
+              <Link to="/post-project">
+                <Button size="lg" className="gap-2 shadow-md">
+                  <Plus className="w-5 h-5" />
+                  Post Your First Project
+                </Button>
+              </Link>
+            </motion.div>
           )}
 
-          {/* Projects List */}
+          {/* ── Projects ── */}
           {!loading && projects.length > 0 && (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-8">
-                <TabsTrigger value="all">All ({projects.length})</TabsTrigger>
-                <TabsTrigger value="active">Active ({stats.activeProjects})</TabsTrigger>
-                <TabsTrigger value="completed">Completed ({stats.completedProjects})</TabsTrigger>
+              <TabsList className="mb-6 w-full sm:w-auto">
+                <TabsTrigger value="all" className="flex-1 sm:flex-none">
+                  All <span className="ml-1.5 text-xs opacity-60">({projects.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="active" className="flex-1 sm:flex-none">
+                  Active <span className="ml-1.5 text-xs opacity-60">({stats.activeProjects})</span>
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="flex-1 sm:flex-none">
+                  Done <span className="ml-1.5 text-xs opacity-60">({stats.completedProjects})</span>
+                </TabsTrigger>
               </TabsList>
 
-              <TabsContent value={activeTab} className="space-y-6">
-                {filteredProjects.map(project => {
-                  const pendingCount = project.proposals?.filter(p => p.status === 'pending').length ?? 0;
+              <TabsContent value={activeTab}>
+                <motion.div
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  className="space-y-4"
+                >
+                  {filteredProjects.map(project => {
+                    const pendingCount = project.proposals?.filter(p => p.status === 'pending').length ?? 0;
+                    const unread = unreadCounts[project._id] ?? 0;
 
-                  return (
-                    <Card key={project._id} className="overflow-hidden">
-                      <div className="flex flex-col lg:flex-row">
+                    return (
+                      <motion.div key={project._id} variants={itemVariants}>
+                        <Card className="overflow-hidden border border-border/60 hover:border-border transition-colors hover:shadow-md">
+                          <div className="flex flex-col sm:flex-row">
 
-                        {/* Project photo */}
-                        <div className="lg:w-80 h-64 lg:h-auto relative">
-                          {project.photos?.[0] ? (
-                            <img src={project.photos[0]} alt={project.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-muted flex items-center justify-center">
-                              <FolderOpen className="w-16 h-16 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Project details */}
-                        <div className="flex-1 p-6 lg:p-8">
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-2xl font-bold">{project.title}</h3>
-                                {getStatusBadge(project.status)}
+                            {/* ── Photo ── */}
+                            <div className="sm:w-44 lg:w-56 h-48 sm:h-auto relative flex-shrink-0">
+                              {project.photos?.[0] ? (
+                                <img
+                                  src={project.photos[0]}
+                                  alt={project.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-muted flex items-center justify-center">
+                                  <FolderOpen className="w-10 h-10 text-muted-foreground/40" />
+                                </div>
+                              )}
+                              {/* Status pill over image on mobile */}
+                              <div className="absolute top-3 left-3 sm:hidden">
+                                <StatusBadge status={project.status} />
                               </div>
-                              <p className="text-muted-foreground line-clamp-2">{project.description}</p>
                             </div>
-                          </div>
 
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                            <div className="flex items-center gap-2 text-sm"><MapPin   className="w-4 h-4" />{project.location}</div>
-                            <div className="flex items-center gap-2 text-sm"><DollarSign className="w-4 h-4" />{formatCurrency(project.budget)}</div>
-                            <div className="flex items-center gap-2 text-sm"><Calendar className="w-4 h-4" />{project.timeline}</div>
-                            <div className="flex items-center gap-2 text-sm"><Clock    className="w-4 h-4" />{formatDate(project.createdAt)}</div>
-                          </div>
-
-                          {project.styles?.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-6">
-                              {project.styles.map(s => <Badge key={s} variant="secondary">{s}</Badge>)}
-                            </div>
-                          )}
-
-                          {/* ✅ Hired designer — now shows because designer is populated */}
-                          {project.designer && project.status !== 'open' && (
-                            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200 flex items-center gap-4">
-                              <Avatar className="w-14 h-14 ring-2 ring-green-200">
-                                <AvatarImage src={project.designer.avatar} />
-                                <AvatarFallback className="bg-green-100 text-green-800 text-lg font-bold">
-                                  {project.designer.name?.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
+                            {/* ── Content ── */}
+                            <div className="flex-1 p-4 sm:p-5 lg:p-6 flex flex-col justify-between gap-4 min-w-0">
+                              {/* Title row */}
                               <div>
-                                <p className="text-xs font-semibold text-green-600 uppercase tracking-wider">
-                                  {project.status === 'completed' ? 'Designer' : 'Hired Designer'}
-                                </p>
-                                <p className="text-lg font-bold text-green-900">{project.designer.name}</p>
-                                <p className="text-sm text-green-700">
-                                  {project.status === 'completed' ? 'Project completed ✓' : 'Project in progress'}
+                                <div className="flex items-start justify-between gap-3 mb-1">
+                                  <h3 className="font-display font-semibold text-base sm:text-lg lg:text-xl leading-snug">
+                                    {project.title}
+                                  </h3>
+                                  <div className="hidden sm:block flex-shrink-0">
+                                    <StatusBadge status={project.status} />
+                                  </div>
+                                </div>
+                                <p className="text-muted-foreground text-sm line-clamp-2">
+                                  {project.description}
                                 </p>
                               </div>
-                            </div>
-                          )}
 
-                          {/* Actions */}
-                          <div className="flex items-center justify-between flex-wrap gap-4">
-                            <div className="text-sm text-muted-foreground">
-                              {project.status === 'open' && (
-                                <span className="flex items-center gap-2">
-                                  <Users className="w-4 h-4" />
-                                  {pendingCount} pending proposal{pendingCount !== 1 ? 's' : ''}
-                                </span>
-                              )}
-                              {project.status === 'in_progress' && (
-                                <span className="flex items-center gap-2 text-blue-600 font-medium">
-                                  <Clock className="w-4 h-4" />In Progress
-                                </span>
-                              )}
-                              {project.status === 'completed' && (
-                                <span className="flex items-center gap-2 text-gray-600 font-medium">
-                                  <CheckCircle2 className="w-4 h-4" />Completed
-                                </span>
-                              )}
-                            </div>
+                              {/* Meta row */}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{project.location}</span>
+                                <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" />{formatCurrency(project.budget)}</span>
+                                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />{project.timeline}</span>
+                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{formatDate(project.createdAt)}</span>
+                              </div>
 
-                            <div className="flex gap-3">
-                              <SignedIn>
-                                <Button variant="outline" asChild className="relative">
-                                  <Link to={`/projects/${project._id}`}>
-                                    {(unreadCounts[project._id] ?? 0) > 0 && (
-                                      <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-destructive text-white text-xs font-bold rounded-full flex items-center justify-center">
-                                        {(unreadCounts[project._id] ?? 0) > 99 ? '99+' : unreadCounts[project._id]}
-                                      </span>
-                                    )}
-                                    <MessageSquare className="w-4 h-4 mr-2" />
-                                    View Details
-                                  </Link>
-                                </Button>
-                              </SignedIn>
-
-                              {project.status === 'open' && pendingCount > 0 && (
-                                <Button onClick={() => setSelectedProject(project)}>
-                                  View Proposals ({pendingCount})
-                                </Button>
+                              {/* Styles */}
+                              {project.styles?.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {project.styles.map(s => (
+                                    <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20 font-medium">
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
                               )}
+
+                              {/* Hired designer bar */}
+                              {project.designer && project.status !== 'open' && (
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200/80">
+                                  <Avatar className="w-9 h-9 ring-2 ring-emerald-200 flex-shrink-0">
+                                    <AvatarImage src={project.designer.avatar} />
+                                    <AvatarFallback className="bg-emerald-100 text-emerald-800 text-sm font-bold">
+                                      {project.designer.name?.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider leading-none mb-0.5">
+                                      {project.status === 'completed' ? 'Designer' : 'Hired'}
+                                    </p>
+                                    <p className="font-semibold text-emerald-900 text-sm truncate">{project.designer.name}</p>
+                                  </div>
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto flex-shrink-0" />
+                                </div>
+                              )}
+
+                              {/* Action row */}
+                              <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <div className="text-xs text-muted-foreground">
+                                  {project.status === 'open' && pendingCount > 0 && (
+                                    <span className="flex items-center gap-1.5 text-secondary font-medium">
+                                      <Users className="w-3.5 h-3.5" />
+                                      {pendingCount} proposal{pendingCount !== 1 ? 's' : ''} waiting
+                                    </span>
+                                  )}
+                                  {project.status === 'open' && pendingCount === 0 && (
+                                    <span className="flex items-center gap-1.5">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      Awaiting proposals
+                                    </span>
+                                  )}
+                                  {project.status === 'in_progress' && (
+                                    <span className="flex items-center gap-1.5 text-blue-600 font-medium">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      In Progress
+                                    </span>
+                                  )}
+                                  {project.status === 'completed' && (
+                                    <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      Completed
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <SignedIn>
+                                    <Button variant="outline" size="sm" asChild className="relative h-8 px-3 text-xs gap-1.5">
+                                      <Link to={`/projects/${project._id}`}>
+                                        {unread > 0 && (
+                                          <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                            {unread > 99 ? '99+' : unread}
+                                          </span>
+                                        )}
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                        Details
+                                      </Link>
+                                    </Button>
+                                  </SignedIn>
+
+                                  {project.status === 'open' && pendingCount > 0 && (
+                                    <Button
+                                      size="sm"
+                                      className="h-8 px-3 text-xs gap-1.5"
+                                      onClick={() => setSelectedProject(project)}
+                                    >
+                                      <Users className="w-3.5 h-3.5" />
+                                      Proposals ({pendingCount})
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
+                </motion.div>
               </TabsContent>
             </Tabs>
           )}
         </div>
       </div>
 
-      {/* ─── Proposals Modal ──────────────────────────────────────────────────── */}
-      {selectedProject && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8">
-
-            {/* Modal header */}
-            <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center rounded-t-2xl z-10">
-              <div>
-                <h2 className="text-2xl font-bold">Proposals</h2>
-                <p className="text-muted-foreground text-sm mt-1">"{selectedProject.title}"</p>
-              </div>
-              <button onClick={() => setSelectedProject(null)} className="p-2 hover:bg-gray-100 rounded-lg transition">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-8">
-              {!selectedProject.proposals?.length ? (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-xl">No proposals yet</p>
-                  <p className="text-muted-foreground mt-2">Designers will send proposals soon!</p>
+      {/* ── Proposals Modal ── */}
+      <AnimatePresence>
+        {selectedProject && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setSelectedProject(null); }}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="bg-background rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden"
+            >
+              {/* Modal header */}
+              <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
+                <div>
+                  <h2 className="font-display text-lg font-bold">Proposals</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px] sm:max-w-xs">
+                    "{selectedProject.title}"
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {selectedProject.proposals.map(proposal => (
-                    <Card key={proposal._id} className={`p-6 transition-opacity ${
-                      proposal.status === 'rejected' ? 'opacity-50' : ''
-                    }`}>
-                      <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
-                        <div className="flex-1">
+                <button
+                  onClick={() => setSelectedProject(null)}
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                          {/* Designer info */}
-                          <div className="flex items-center gap-4 mb-4">
-                            <Avatar className="w-14 h-14">
-                              <AvatarImage src={proposal.designer?.avatar} />
-                              <AvatarFallback className="text-xl font-bold">
-                                {proposal.designer?.name?.charAt(0).toUpperCase() ?? '?'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <h4 className="text-xl font-bold">{proposal.designer?.name ?? 'Unknown Designer'}</h4>
-                              <Badge className={
-                                proposal.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                proposal.status === 'rejected' ? 'bg-red-100   text-red-800'   :
-                                'bg-yellow-100 text-yellow-800'
-                              }>
-                                {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
-                              </Badge>
-                            </div>
+              {/* Modal body */}
+              <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
+                {!selectedProject.proposals?.length ? (
+                  <div className="text-center py-16">
+                    <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+                      <Users className="w-7 h-7 text-muted-foreground" />
+                    </div>
+                    <p className="font-semibold text-lg">No proposals yet</p>
+                    <p className="text-muted-foreground text-sm mt-1">Designers will send proposals soon!</p>
+                  </div>
+                ) : (
+                  selectedProject.proposals.map(proposal => (
+                    <div
+                      key={proposal._id}
+                      className={`rounded-2xl border p-4 sm:p-5 transition-opacity ${
+                        proposal.status === 'rejected' ? 'opacity-40' : 'border-border/60 bg-background'
+                      }`}
+                    >
+                      {/* Designer row */}
+                      <div className="flex items-center gap-3 mb-3">
+                        <Avatar className="w-10 h-10 flex-shrink-0">
+                          <AvatarImage src={proposal.designer?.avatar} />
+                          <AvatarFallback className="text-base font-bold">
+                            {proposal.designer?.name?.charAt(0).toUpperCase() ?? '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-sm truncate">{proposal.designer?.name ?? 'Unknown'}</p>
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border ${
+                            proposal.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            proposal.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                            'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
+                          </span>
+                        </div>
+                        {/* Price & timeline — inline on desktop */}
+                        <div className="hidden sm:flex items-center gap-4 text-sm text-right flex-shrink-0">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Price</p>
+                            <p className="font-bold">KSh {proposal.price.toLocaleString()}</p>
                           </div>
-
-                          <p className="text-gray-700 mb-4 whitespace-pre-wrap">{proposal.message}</p>
-
-                          <div className="grid grid-cols-2 gap-4 text-sm bg-muted/50 rounded-lg p-4">
-                            <div>
-                              <p className="text-muted-foreground">Proposed Price</p>
-                              <p className="font-bold text-lg">KSh {proposal.price.toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Timeline</p>
-                              <p className="font-bold text-lg">{proposal.timeline}</p>
-                            </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Timeline</p>
+                            <p className="font-bold">{proposal.timeline}</p>
                           </div>
                         </div>
-
-                        {/* Action buttons — only for pending proposals */}
-                        {proposal.status === 'pending' && (
-                          <div className="flex flex-col gap-3 min-w-[140px]">
-                            <Button
-                              size="lg"
-                              onClick={() => handleAcceptProposal(proposal._id)}
-                              disabled={!!acceptingProposal}
-                              className="w-full"
-                            >
-                              {acceptingProposal === proposal._id ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                              ) : (
-                                <><Check className="w-5 h-5 mr-2" />Hire</>
-                              )}
-                            </Button>
-                            <Button
-                              size="lg"
-                              variant="destructive"
-                              onClick={() => handleRejectProposal(proposal._id)}
-                              disabled={!!rejectingProposal}
-                              className="w-full"
-                            >
-                              {rejectingProposal === proposal._id ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                              ) : 'Reject'}
-                            </Button>
-                          </div>
-                        )}
                       </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
+                      {/* Price + timeline — mobile */}
+                      <div className="sm:hidden grid grid-cols-2 gap-3 mb-3 p-3 rounded-xl bg-muted/40">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Price</p>
+                          <p className="font-bold text-sm">KSh {proposal.price.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Timeline</p>
+                          <p className="font-bold text-sm">{proposal.timeline}</p>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap line-clamp-3">
+                        {proposal.message}
+                      </p>
+
+                      {/* Action buttons */}
+                      {proposal.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1 gap-1.5 h-9"
+                            onClick={() => handleAcceptProposal(proposal._id)}
+                            disabled={!!acceptingProposal}
+                          >
+                            {acceptingProposal === proposal._id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <><Check className="w-4 h-4" />Hire Designer</>
+                            }
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-9 px-4 text-destructive border-destructive/30 hover:bg-destructive/5"
+                            onClick={() => handleRejectProposal(proposal._id)}
+                            disabled={!!rejectingProposal}
+                          >
+                            {rejectingProposal === proposal._id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : 'Decline'
+                            }
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 }
