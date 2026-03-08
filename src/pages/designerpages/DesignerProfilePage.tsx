@@ -42,6 +42,95 @@ interface Designer {
   socialLinks?: { instagram?: string; pinterest?: string; website?: string };
 }
 
+
+/**
+ * Optimizes and crops images before upload
+ * @param file - The image file to optimize
+ * @param options - Optimization options
+ * @returns Optimized image as Blob
+ */
+async function optimizeImage(
+  file: File,
+  options: {
+    maxWidth: number;
+    maxHeight: number;
+    quality: number;
+    crop: 'square' | 'cover';
+  }
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const img = new Image();
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+
+        let { width, height } = img;
+        let sx = 0, sy = 0, sWidth = width, sHeight = height;
+
+        // ✅ Square crop for avatars (center crop)
+        if (options.crop === 'square') {
+          const size = Math.min(width, height);
+          sx = (width - size) / 2;
+          sy = (height - size) / 2;
+          sWidth = size;
+          sHeight = size;
+          
+          const targetSize = Math.min(options.maxWidth, size);
+          canvas.width = targetSize;
+          canvas.height = targetSize;
+        } 
+        // ✅ Cover crop (maintain aspect ratio, scale down)
+        else {
+          const ratio = Math.min(options.maxWidth / width, options.maxHeight / height);
+          
+          if (ratio < 1) {
+            width = Math.floor(width * ratio);
+            height = Math.floor(height * ratio);
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+        }
+
+        // High quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+
+        // Convert to JPEG blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to create blob'));
+            }
+          },
+          'image/jpeg',
+          options.quality
+        );
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = e.target?.result as string;
+    };
+
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+
+
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<ProjectStatus, { label: string; className: string; icon: React.ReactNode }> = {
@@ -377,7 +466,7 @@ function SocialLinksModal({ value, onSave, onClose }: {
   );
 }
 
-// ─── Avatar Upload Modal ──────────────────────────────────────────────────────
+// ─── Fixed Avatar Upload Modal with Optimization ─────────────────────────────
 
 function AvatarModal({ current, onSave, onClose }: { current: string; onSave: (url: string) => Promise<void>; onClose: () => void }) {
   const [preview, setPreview] = useState(current);
@@ -386,21 +475,54 @@ function AvatarModal({ current, onSave, onClose }: { current: string; onSave: (u
   const inputRef = useRef<HTMLInputElement>(null);
   const { getToken } = useAuth();
 
-  useEffect(() => { document.body.style.overflow='hidden'; return ()=>{ document.body.style.overflow=''; }; }, []);
+  useEffect(() => { 
+    document.body.style.overflow='hidden'; 
+    return ()=>{ document.body.style.overflow=''; }; 
+  }, []);
 
+  // ✅ FIX: Optimize image before upload
   const handleFile = async (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (JPG, PNG, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 10MB before optimization)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image too large. Please choose an image under 10MB.');
+      return;
+    }
+
     setUploading(true);
     try {
-      const token = await getToken();
-      const fd = new FormData(); fd.append('avatar', file);
-      const res = await fetch('http://localhost:5000/api/users/upload-avatar', {
-        method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
+      // ✅ Optimize: Square crop + resize to 400x400 + 90% quality
+      const optimizedBlob = await optimizeImage(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.9,
+        crop: 'square', // Force square crop!
       });
+
+      const token = await getToken();
+      const fd = new FormData();
+      fd.append('avatar', optimizedBlob, 'avatar.jpg');
+      
+      const res = await fetch('http://localhost:5000/api/users/upload-avatar', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd
+      });
+      
       const data = await res.json();
       if (data.success) setPreview(data.url);
       else throw new Error(data.error);
-    } catch { alert('Upload failed'); }
-    finally { setUploading(false); }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const save = async () => {
@@ -413,17 +535,28 @@ function AvatarModal({ current, onSave, onClose }: { current: string; onSave: (u
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{opacity:0,scale:0.97}} animate={{opacity:1,scale:1}} transition={{duration:0.2}}
-        className="bg-background rounded-2xl shadow-2xl w-full max-w-sm" onClick={e=>e.stopPropagation()}>
+      <motion.div 
+        initial={{opacity:0,scale:0.97}} 
+        animate={{opacity:1,scale:1}} 
+        transition={{duration:0.2}}
+        className="bg-background rounded-2xl shadow-2xl w-full max-w-sm" 
+        onClick={e=>e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="font-bold text-xl">Update Photo</h2>
-          <button onClick={onClose} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition"><X className="w-5 h-5"/></button>
+          <button onClick={onClose} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition">
+            <X className="w-5 h-5"/>
+          </button>
         </div>
+        
         <div className="p-6 flex flex-col items-center gap-4">
           <div className="relative">
+            {/* ✅ FIX: Add object-cover class to prevent stretching */}
             <Avatar className="w-32 h-32 ring-4 ring-border shadow-lg">
-              <AvatarImage src={preview}/>
-              <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white">P</AvatarFallback>
+              <AvatarImage src={preview} className="object-cover"/>
+              <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white">
+                P
+              </AvatarFallback>
             </Avatar>
             {uploading && (
               <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
@@ -431,16 +564,38 @@ function AvatarModal({ current, onSave, onClose }: { current: string; onSave: (u
               </div>
             )}
           </div>
-          <input type="file" accept="image/*" ref={inputRef} className="hidden" onChange={e=>e.target.files?.[0]&&handleFile(e.target.files[0])}/>
-          <Button variant="outline" className="w-full" onClick={()=>inputRef.current?.click()} disabled={uploading}>
-            <Upload className="w-4 h-4 mr-2"/>Choose Photo
+          
+          <input 
+            type="file" 
+            accept="image/jpeg,image/jpg,image/png,image/webp" 
+            ref={inputRef} 
+            className="hidden" 
+            onChange={e=>e.target.files?.[0]&&handleFile(e.target.files[0])}
+          />
+          
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            onClick={()=>inputRef.current?.click()} 
+            disabled={uploading}
+          >
+            <Upload className="w-4 h-4 mr-2"/>
+            Choose Photo
           </Button>
-          <p className="text-xs text-muted-foreground">JPG or PNG, max 5MB. Square images work best.</p>
+          
+          <p className="text-xs text-muted-foreground text-center">
+            JPG, PNG, or WebP • Max 10MB<br/>
+            Image will be automatically cropped to square
+          </p>
         </div>
+        
         <div className="flex gap-3 p-6 pt-0">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
           <Button className="flex-1" onClick={save} disabled={saving||uploading}>
-            {saving?<Loader2 className="w-4 h-4 animate-spin mr-2"/>:<Check className="w-4 h-4 mr-2"/>}Save
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <Check className="w-4 h-4 mr-2"/>}
+            Save
           </Button>
         </div>
       </motion.div>
@@ -448,7 +603,7 @@ function AvatarModal({ current, onSave, onClose }: { current: string; onSave: (u
   );
 }
 
-// ─── Cover Upload Modal ───────────────────────────────────────────────────────
+// ─── Fixed Cover Upload Modal with Optimization ───────────────────────────────
 
 function CoverModal({ current, onSave, onClose }: { current: string; onSave: (url: string) => Promise<void>; onClose: () => void }) {
   const [preview, setPreview] = useState(current);
@@ -457,21 +612,52 @@ function CoverModal({ current, onSave, onClose }: { current: string; onSave: (ur
   const inputRef = useRef<HTMLInputElement>(null);
   const { getToken } = useAuth();
 
-  useEffect(() => { document.body.style.overflow='hidden'; return ()=>{ document.body.style.overflow=''; }; }, []);
+  useEffect(() => { 
+    document.body.style.overflow='hidden'; 
+    return ()=>{ document.body.style.overflow=''; }; 
+  }, []);
 
+  // ✅ FIX: Optimize cover image
   const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (JPG, PNG, or WebP)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image too large. Please choose an image under 10MB.');
+      return;
+    }
+
     setUploading(true);
     try {
-      const token = await getToken();
-      const fd = new FormData(); fd.append('cover', file);
-      const res = await fetch('http://localhost:5000/api/users/upload-cover', {
-        method:'POST', headers:{Authorization:`Bearer ${token}`}, body:fd
+      // ✅ Optimize: Wide format + resize to 1600x600 + 85% quality
+      const optimizedBlob = await optimizeImage(file, {
+        maxWidth: 1600,
+        maxHeight: 600,
+        quality: 0.85,
+        crop: 'cover', // Maintain aspect ratio
       });
+
+      const token = await getToken();
+      const fd = new FormData();
+      fd.append('cover', optimizedBlob, 'cover.jpg');
+      
+      const res = await fetch('http://localhost:5000/api/users/upload-cover', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd
+      });
+      
       const data = await res.json();
       if (data.success) setPreview(data.url);
       else throw new Error(data.error);
-    } catch { alert('Upload failed'); }
-    finally { setUploading(false); }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const save = async () => {
@@ -484,17 +670,29 @@ function CoverModal({ current, onSave, onClose }: { current: string; onSave: (ur
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <motion.div initial={{opacity:0,scale:0.97}} animate={{opacity:1,scale:1}} transition={{duration:0.2}}
-        className="bg-background rounded-2xl shadow-2xl w-full max-w-lg" onClick={e=>e.stopPropagation()}>
+      <motion.div 
+        initial={{opacity:0,scale:0.97}} 
+        animate={{opacity:1,scale:1}} 
+        transition={{duration:0.2}}
+        className="bg-background rounded-2xl shadow-2xl w-full max-w-lg" 
+        onClick={e=>e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="font-bold text-xl">Cover Image</h2>
-          <button onClick={onClose} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition"><X className="w-5 h-5"/></button>
+          <button onClick={onClose} className="w-9 h-9 rounded-full hover:bg-muted flex items-center justify-center transition">
+            <X className="w-5 h-5"/>
+          </button>
         </div>
+        
         <div className="p-6 space-y-4">
-          {/* Preview */}
-          <div className="relative h-40 rounded-xl overflow-hidden bg-muted">
+          {/* ✅ FIX: Preview with proper object-cover */}
+          <div className="relative h-48 rounded-xl overflow-hidden bg-muted">
             {preview ? (
-              <img src={preview} alt="Cover preview" className="w-full h-full object-cover"/>
+              <img 
+                src={preview} 
+                alt="Cover preview" 
+                className="w-full h-full object-cover" // ✅ Prevents stretching
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                 <Camera className="w-10 h-10"/>
@@ -506,19 +704,36 @@ function CoverModal({ current, onSave, onClose }: { current: string; onSave: (ur
               </div>
             )}
           </div>
-          <input type="file" accept="image/*" ref={inputRef} className="hidden" onChange={e=>e.target.files?.[0]&&handleFile(e.target.files[0])}/>
+          
+          <input 
+            type="file" 
+            accept="image/jpeg,image/jpg,image/png,image/webp" 
+            ref={inputRef} 
+            className="hidden" 
+            onChange={e=>e.target.files?.[0]&&handleFile(e.target.files[0])}
+          />
+          
           <button
-            onClick={()=>inputRef.current?.click()} disabled={uploading}
-            className="w-full border-2 border-dashed border-muted-foreground/30 hover:border-primary rounded-xl p-6 flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition group">
+            onClick={()=>inputRef.current?.click()} 
+            disabled={uploading}
+            className="w-full border-2 border-dashed border-muted-foreground/30 hover:border-primary rounded-xl p-6 flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition group disabled:opacity-50"
+          >
             <Upload className="w-8 h-8"/>
             <span className="text-sm font-medium">Click to upload cover image</span>
-            <span className="text-xs">Recommended: 1600×400px or wider</span>
+            <span className="text-xs text-center">
+              Recommended: 1600×400px or wider • Max 10MB<br/>
+              JPG, PNG, or WebP
+            </span>
           </button>
         </div>
+        
         <div className="flex gap-3 p-6 pt-0">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" className="flex-1" onClick={onClose}>
+            Cancel
+          </Button>
           <Button className="flex-1" onClick={save} disabled={saving||uploading}>
-            {saving?<Loader2 className="w-4 h-4 animate-spin mr-2"/>:<Check className="w-4 h-4 mr-2"/>}Save Cover
+            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2"/> : <Check className="w-4 h-4 mr-2"/>}
+            Save Cover
           </Button>
         </div>
       </motion.div>

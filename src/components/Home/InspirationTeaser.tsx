@@ -1,75 +1,77 @@
+// src/components/Home/InspirationTeaser.tsx - FIXED VERSION
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { api } from '@/services/api';
 import { InspirationCard } from '../Inspiration/InspirationCard';
 
-interface PortfolioItem {
+interface InspirationItem {
   _id: string;
   title: string;
-  description: string;
-  beforeImage: string;
-  afterImage: string;
+  description?: string;
+  beforeImage?: string;
+  afterImage?: string;
+  image?: string;
   style: string;
-  designerName: string;
-  designerId: string;
-  budget?: number;
+  styles?: string[];
+  designer: {
+    _id: string;
+    name: string;
+    avatar?: string;
+    designerProfile?: {
+      verified?: boolean;
+    };
+  };
+  likes?: number;
+  views?: number;
 }
 
 export function InspirationTeaser() {
-  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [inspirationItems, setInspirationItems] = useState<InspirationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Fetch portfolio items from designers
+  // ✅ FIX: Fetch from real inspiration API endpoint
   useEffect(() => {
-    api.getDesigners()
-      .then(designers => {
-        const allItems: PortfolioItem[] = [];
-        designers.forEach((designer: any) => {
-          if (designer.portfolio && designer.portfolio.length > 0) {
-            designer.portfolio.forEach((item: any) => {
-              allItems.push({
-                _id: item._id || `${designer._id}-${item.id}`,
-                title: item.title,
-                description: item.description,
-                beforeImage: item.beforeImage,
-                afterImage: item.afterImage,
-                style: item.style,
-                designerName: designer.name,
-                designerId: designer._id || designer.id,
-                budget: item.budget,
-              });
-            });
-          }
-        });
-        setPortfolioItems(allItems);
-        setLoading(false);
-      })
-      .catch(err => {
+    const fetchInspiration = async () => {
+      try {
+        // Fetch public inspiration feed
+        const res = await fetch('http://localhost:5000/api/inspiration/public-feed?limit=12');
+        const data = await res.json();
+
+        if (data.success && data.inspirations) {
+          setInspirationItems(data.inspirations);
+        } else {
+          console.error('Failed to load inspiration:', data.error);
+          setError('Failed to load inspiration');
+        }
+      } catch (err) {
         console.error('Error loading inspiration:', err);
         setError('Failed to load inspiration');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchInspiration();
   }, []);
 
   // Show only first 8 items for teaser
-  const teaserItems = portfolioItems.slice(0, 8);
+  const teaserItems = inspirationItems.slice(0, 8);
 
   // Loading State
   if (loading) {
     return (
-      <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-cream">
+      <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-muted/30">
         <div className="container mx-auto px-4 lg:px-8">
           <div className="text-center mb-12">
             <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary mb-6" />
             <h2 className="font-display text-4xl font-bold">Loading Inspiration...</h2>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div key={i} className="rounded-2xl overflow-hidden animate-pulse">
+              <div key={i} className="rounded-2xl overflow-hidden animate-pulse break-inside-avoid">
                 <div className="aspect-[4/5] bg-muted" />
               </div>
             ))}
@@ -80,9 +82,9 @@ export function InspirationTeaser() {
   }
 
   // Error State
-  if (error) {
+  if (error && inspirationItems.length === 0) {
     return (
-      <section className="py-16 lg:py-24">
+      <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-muted/30">
         <div className="container mx-auto px-4 lg:px-8 text-center">
           <p className="text-destructive text-xl">{error}</p>
           <Button onClick={() => window.location.reload()} className="mt-6">
@@ -96,16 +98,20 @@ export function InspirationTeaser() {
   // Empty State
   if (teaserItems.length === 0) {
     return (
-      <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-cream">
+      <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-muted/30">
         <div className="container mx-auto px-4 lg:px-8 text-center">
-          <p className="text-muted-foreground text-xl">No inspiration available yet</p>
+          <Sparkles className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-2xl font-bold mb-2">No Inspiration Yet</h3>
+          <p className="text-muted-foreground text-lg">
+            Our designers are working on amazing projects. Check back soon!
+          </p>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-cream">
+    <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-muted/30">
       <div className="container mx-auto px-4 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -115,8 +121,8 @@ export function InspirationTeaser() {
             viewport={{ once: true }}
             className="flex items-center justify-center gap-3 mb-4"
           >
-            <Sparkles className="w-6 h-6 text-gold" />
-            <span className="text-gold font-semibold uppercase tracking-wider text-sm">
+            <Sparkles className="w-6 h-6 text-secondary" />
+            <span className="text-secondary font-semibold uppercase tracking-wider text-sm">
               Real Transformations
             </span>
           </motion.div>
@@ -144,18 +150,39 @@ export function InspirationTeaser() {
 
         {/* Masonry Grid */}
         <div className="columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6 mb-12">
-          {teaserItems.map((item, index) => (
-            <motion.div
-              key={item._id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.05 }}
-              className="break-inside-avoid"
-            >
-              <InspirationCard inspiration={item} index={index} />
-            </motion.div>
-          ))}
+          {teaserItems.map((item, index) => {
+            // Transform data to match InspirationCard props
+            const transformedItem = {
+              _id: item._id,
+              id: item._id,
+              title: item.title,
+              description: item.description,
+              beforeImage: item.beforeImage || item.image,
+              afterImage: item.afterImage || item.image,
+              image: item.image,
+              style: item.style || (item.styles && item.styles[0]) || 'Modern',
+              styles: item.styles,
+              designerName: item.designer?.name,
+              designerId: item.designer?._id,
+              designerAvatar: item.designer?.avatar,
+              verified: item.designer?.designerProfile?.verified,
+              likes: item.likes,
+              views: item.views,
+            };
+
+            return (
+              <motion.div
+                key={item._id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+                className="break-inside-avoid"
+              >
+                <InspirationCard inspiration={transformedItem} index={index} />
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* CTA */}
@@ -166,8 +193,9 @@ export function InspirationTeaser() {
           className="text-center"
         >
           <Link to="/inspiration">
-            <Button size="xl" className="btn-primary shadow-soft hover:shadow-medium">
-              View All Inspiration ({portfolioItems.length})
+            <Button size="xl" className="shadow-soft hover:shadow-medium">
+              View All Inspiration
+              {inspirationItems.length > 8 && ` (${inspirationItems.length}+)`}
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>
