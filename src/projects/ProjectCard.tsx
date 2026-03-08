@@ -33,7 +33,6 @@ interface ProjectCardProps {
   unreadCount?: number;
   onAction?: () => void;
   actionLabel?: string;
-  /** Shows an amber "Direct Invite" badge on the hero image */
   directInvite?: boolean;
 }
 
@@ -52,8 +51,7 @@ export function ProjectCard({
   const totalPhotos =
     (project.beforePhotos?.length || 0) +
     (project.inspirationPhotos?.length || 0) ||
-    project.photos?.length ||
-    0;
+    project.photos?.length || 0;
 
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,13 +62,13 @@ export function ProjectCard({
     <>
       <Card
         className={cn(
-          'group overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full cursor-pointer',
+          'group overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col h-full cursor-pointer',
           variant === 'active' && 'border-2 border-primary/20'
         )}
         onClick={() => setShowModal(true)}
       >
-        {/* Hero Image */}
-        <div className="relative h-56 overflow-hidden bg-muted">
+        {/* ── Hero image ── */}
+        <div className="relative h-44 sm:h-52 overflow-hidden bg-muted flex-shrink-0">
           {heroPhoto ? (
             <OptimizedImage
               src={heroPhoto}
@@ -82,95 +80,93 @@ export function ProjectCard({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <Images className="w-16 h-16 text-muted-foreground" />
+              <Images className="w-12 h-12 text-muted-foreground/40" />
             </div>
           )}
 
-          {/* Photo Count */}
+          {/* Photo count pill */}
           {totalPhotos > 0 && (
-            <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-sm text-white text-xs px-2.5 py-1.5 rounded-full flex items-center gap-1.5 font-medium">
-              <Images className="w-3.5 h-3.5" />
+            <div className="absolute bottom-2.5 right-2.5 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1 font-medium">
+              <Images className="w-3 h-3" />
               {totalPhotos}
             </div>
           )}
 
-          {/* Direct Invite Badge */}
+          {/* Badges */}
           {directInvite && (
-            <div className="absolute top-3 left-3">
-              <Badge className="bg-amber-500 text-white shadow-lg gap-1.5">
-                <Users className="w-3 h-3" />
-                Direct Invite
-              </Badge>
+            <div className="absolute top-2.5 left-2.5">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500 text-white text-xs font-bold shadow-md">
+                <Users className="w-3 h-3" /> Direct Invite
+              </span>
             </div>
           )}
-
-          {/* Active badge */}
           {variant === 'active' && !directInvite && (
-            <div className="absolute top-3 left-3">
-              <Badge className="bg-blue-500 text-white shadow-lg">
+            <div className="absolute top-2.5 left-2.5">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500 text-white text-xs font-bold shadow-md">
                 In Progress
-              </Badge>
+              </span>
             </div>
           )}
 
-          {/* Hover Overlay */}
-          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <div className="flex items-center gap-2 text-white font-medium">
-              <Eye className="w-5 h-5" />
-              View Details
+          {/* Hover overlay — desktop only */}
+          <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center justify-center">
+            <div className="flex items-center gap-2 text-white font-medium text-sm">
+              <Eye className="w-4 h-4" /> View Details
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-5 flex flex-col flex-1">
-          <div className="mb-4">
-            <h3 className="text-xl font-bold mb-2 line-clamp-1 group-hover:text-primary transition-colors">
+        {/* ── Content ── */}
+        <div className="p-4 sm:p-5 flex flex-col flex-1">
+          {/* Title + description */}
+          <div className="mb-3">
+            <h3 className="font-display font-bold text-base sm:text-lg leading-snug line-clamp-1 group-hover:text-primary transition-colors mb-1">
               {project.title}
             </h3>
-            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
               {project.description}
             </p>
           </div>
 
-          <div className="space-y-2.5 mb-4 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="w-4 h-4 flex-shrink-0" />
+          {/* Meta */}
+          <div className="space-y-1.5 mb-3 text-xs sm:text-sm">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="truncate">{project.location}</span>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <DollarSign className="w-4 h-4 flex-shrink-0" />
-              <span className="font-semibold text-foreground">
-                KSh {project.budget.toLocaleString()}
-              </span>
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+              <span className="font-semibold text-foreground">KSh {project.budget.toLocaleString()}</span>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="w-4 h-4 flex-shrink-0" />
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{project.timeline}</span>
             </div>
           </div>
 
+          {/* Style tags */}
           {project.styles?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            <div className="flex flex-wrap gap-1 mb-3">
               {project.styles.slice(0, 3).map(style => (
-                <Badge key={style} variant="secondary" className="text-xs font-medium">
+                <span key={style} className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20 font-medium">
                   {style}
-                </Badge>
+                </span>
               ))}
               {project.styles.length > 3 && (
-                <Badge variant="outline" className="text-xs">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-medium">
                   +{project.styles.length - 3}
-                </Badge>
+                </span>
               )}
             </div>
           )}
 
-          <div className="mt-auto pt-4 border-t flex items-center justify-between gap-3">
+          {/* Footer */}
+          <div className="mt-auto pt-3 border-t border-border/60 flex items-center justify-between gap-2">
             {variant === 'open' && project.client && (
-              <div className="flex items-center gap-2 min-w-0">
-                <Avatar className="w-6 h-6 flex-shrink-0">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Avatar className="w-5 h-5 flex-shrink-0">
                   <AvatarImage src={project.client.avatar} />
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className="text-[10px]">
                     {project.client.name?.[0]?.toUpperCase() || 'C'}
                   </AvatarFallback>
                 </Avatar>
@@ -185,18 +181,15 @@ export function ProjectCard({
               variant={alreadySent ? 'secondary' : 'default'}
               disabled={alreadySent}
               onClick={handleActionClick}
-              className="ml-auto flex-shrink-0 relative"
+              className="ml-auto flex-shrink-0 relative h-8 text-xs px-3 gap-1.5"
             >
               {alreadySent ? (
-                <>
-                  <Check className="w-4 h-4 mr-1.5" />
-                  Sent
-                </>
+                <><Check className="w-3.5 h-3.5" />Sent</>
               ) : (
                 <>
                   {actionLabel}
                   {unreadCount && unreadCount > 0 && (
-                    <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-destructive text-white text-xs font-bold rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-destructive text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
