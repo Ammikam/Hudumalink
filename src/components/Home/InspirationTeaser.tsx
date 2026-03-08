@@ -1,4 +1,4 @@
-// src/components/Home/InspirationTeaser.tsx - FIXED VERSION
+// src/components/Home/InspirationTeaser.tsx - FIXED API ENDPOINT
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Loader2 } from 'lucide-react';
@@ -32,12 +32,12 @@ export function InspirationTeaser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // ✅ FIX: Fetch from real inspiration API endpoint
+  // ✅ FIX: Use the same endpoint as InspirationPage
   useEffect(() => {
     const fetchInspiration = async () => {
       try {
-        // Fetch public inspiration feed
-        const res = await fetch('http://localhost:5000/api/inspiration/public-feed?limit=12');
+        // Use the SAME endpoint that works on InspirationPage
+        const res = await fetch('http://localhost:5000/api/inspirations?limit=12');
         const data = await res.json();
 
         if (data.success && data.inspirations) {
