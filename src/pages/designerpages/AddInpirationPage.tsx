@@ -8,88 +8,124 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
-  Loader2, Upload, X, Image as ImageIcon, ArrowRight, Check,
-  AlertCircle, Sparkles, Eye, MapPin, DollarSign
+  Loader2, Upload, X, Check, AlertCircle, Sparkles,
+  Eye, MapPin, DollarSign, Info,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 const DESIGN_STYLES = [
   'Modern', 'African Fusion', 'Minimalist', 'Luxury',
   'Bohemian', 'Coastal', 'Budget-Friendly', 'Industrial',
-  'Scandinavian', 'Art Deco', 'Contemporary', 'Traditional'
+  'Scandinavian', 'Art Deco', 'Contemporary', 'Traditional',
 ];
 
-
-/**
- * Aspect Ratio Guide Component
- * Shows designers the optimal crop/format for their images
- */
 function AspectRatioGuide() {
   return (
-    <div className="bg-blue-50 dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-800 rounded-xl p-5 mb-6">
-      <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-          <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+    <div className="rounded-2xl border border-blue-200/80 bg-blue-50/60 p-4 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+          <Info className="w-4 h-4 text-blue-600" />
         </div>
-        <div className="flex-1">
-          <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-2">
-            📐 Image Guidelines for Best Quality
-          </h4>
-          <ul className="space-y-1.5 text-sm text-blue-800 dark:text-blue-200">
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
-              <span>
-                <strong>Aspect Ratio:</strong> Portrait (4:5 ratio) works best, for example, 800×1000px or 1600×2000px
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
-              <span>
-                <strong>Minimum Size:</strong> 800×1000px (larger is better for detail views)
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
-              <span>
-                <strong>Format:</strong> JPG or PNG (we'll automatically optimize for web)
-              </span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-600 dark:text-blue-400 font-bold">•</span>
-              <span>
-                <strong>Quality:</strong> High-resolution, well-lit photos show your work best
-              </span>
-            </li>
-          </ul>
-          
-          {/* Visual Guide */}
-          <div className="mt-4 flex items-center gap-3">
-            <div className="text-center">
-              <div className="w-16 h-20 bg-green-200 dark:bg-green-800 rounded border-2 border-green-500 flex items-center justify-center text-xs font-bold text-green-700 dark:text-green-200">
-                4:5
-              </div>
-              <p className="text-xs text-green-700 dark:text-green-300 mt-1 font-semibold">✓ Perfect</p>
-            </div>
-            <div className="text-center">
-              <div className="w-24 h-16 bg-amber-200 dark:bg-amber-800 rounded border-2 border-amber-500 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-200">
-                16:9
-              </div>
-              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">⚠️ Will crop</p>
-            </div>
-            <div className="text-center">
-              <div className="w-20 h-20 bg-red-200 dark:bg-red-800 rounded border-2 border-red-500 flex items-center justify-center text-xs font-bold text-red-700 dark:text-red-200">
-                1:1
-              </div>
-              <p className="text-xs text-red-700 dark:text-red-300 mt-1">✗ Avoid</p>
-            </div>
-          </div>
-        </div>
+        <p className="font-semibold text-sm text-blue-900">Image Guidelines</p>
       </div>
+
+      <ul className="space-y-1.5 text-sm text-blue-800 pl-1">
+        <li><span className="font-semibold">Ratio:</span> Portrait 4:5 — e.g. 800×1000px or 1600×2000px</li>
+        <li><span className="font-semibold">Min size:</span> 800×1000px (larger = better detail)</li>
+        <li><span className="font-semibold">Format:</span> JPG or PNG, max 5MB</li>
+        <li><span className="font-semibold">Quality:</span> Well-lit, high-res photos only</li>
+      </ul>
+
+      {/* Visual ratio guide */}
+      <div className="flex items-end gap-4 pt-1">
+        {[
+          { w: 'w-14', h: 'h-[4.4rem]', color: 'bg-emerald-200 border-emerald-500 text-emerald-700', label: '4:5', verdict: '✓ Best' },
+          { w: 'w-20', h: 'h-14',       color: 'bg-amber-200 border-amber-500 text-amber-700',     label: '16:9', verdict: '⚠ Crops' },
+          { w: 'w-14', h: 'h-14',       color: 'bg-red-200 border-red-400 text-red-700',            label: '1:1',  verdict: '✗ Avoid' },
+        ].map(({ w, h, color, label, verdict }) => (
+          <div key={label} className="flex flex-col items-center gap-1">
+            <div className={`${w} ${h} ${color} rounded border-2 flex items-center justify-center text-xs font-bold`}>
+              {label}
+            </div>
+            <p className="text-xs font-medium" style={{ color: 'inherit' }}>{verdict}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface ImageUploadZoneProps {
+  label: string;
+  badge: string;
+  badgeClass: string;
+  imageUrl: string;
+  uploading: boolean;
+  error?: string;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+}
+
+function ImageUploadZone({ label, badge, badgeClass, imageUrl, uploading, error, onUpload, onRemove }: ImageUploadZoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-semibold">{label}</Label>
+      <div
+        className={cn(
+          'relative aspect-[4/5] rounded-2xl border-2 border-dashed overflow-hidden transition-all',
+          imageUrl   ? 'border-primary/40 bg-primary/3' :
+          error      ? 'border-destructive bg-destructive/3' :
+                       'border-border hover:border-primary/50 hover:bg-primary/3 bg-muted/30 cursor-pointer'
+        )}
+        onClick={() => !imageUrl && !uploading && inputRef.current?.click()}
+      >
+        {imageUrl ? (
+          <>
+            <img src={imageUrl} alt={label} className="w-full h-full object-cover" />
+            {/* Badge */}
+            <span className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-xs font-bold text-white ${badgeClass}`}>
+              {badge}
+            </span>
+            {/* Remove */}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onRemove(); }}
+              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-destructive text-white flex items-center justify-center transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+            {/* Overlay on hover */}
+            <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors" />
+          </>
+        ) : uploading ? (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-primary">
+            <Loader2 className="w-10 h-10 animate-spin" />
+            <span className="text-sm font-medium">Uploading…</span>
+          </div>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-muted-foreground pointer-events-none px-4 text-center">
+            <Upload className="w-9 h-9" />
+            <span className="text-sm font-medium">Upload {label}</span>
+            <span className="text-xs">JPG, PNG · max 5MB</span>
+          </div>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])}
+        />
+      </div>
+      {error && (
+        <p className="flex items-center gap-1 text-xs text-destructive">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{error}
+        </p>
+      )}
     </div>
   );
 }
@@ -99,12 +135,9 @@ export default function AddInspirationPage() {
   const { getToken } = useAuth();
   const { toast } = useToast();
 
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]       = useState(false);
   const [uploadingBefore, setUploadingBefore] = useState(false);
-  const [uploadingAfter, setUploadingAfter] = useState(false);
-
-  const beforeInputRef = useRef<HTMLInputElement>(null);
-  const afterInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAfter, setUploadingAfter]   = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -124,497 +157,347 @@ export default function AddInspirationPage() {
       ...prev,
       selectedStyles: prev.selectedStyles.includes(style)
         ? prev.selectedStyles.filter(s => s !== style)
-        : [...prev.selectedStyles, style].slice(0, 5), // Max 5 styles
+        : [...prev.selectedStyles, style].slice(0, 5),
     }));
   };
 
   const uploadImage = async (file: File, type: 'before' | 'after') => {
     const setUploading = type === 'before' ? setUploadingBefore : setUploadingAfter;
     setUploading(true);
-
     try {
       const token = await getToken();
-      const formData = new FormData();
-      formData.append('cover', file); // Reuse cover upload endpoint
-
+      const fd = new FormData();
+      fd.append('cover', file);
       const res = await fetch('http://localhost:5000/api/users/upload-cover', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+        body: fd,
       });
-
       const data = await res.json();
-
       if (data.success) {
-        setFormData(prev => ({
-          ...prev,
-          [type === 'before' ? 'beforeImage' : 'afterImage']: data.url,
-        }));
-        toast({
-          title: '✅ Image uploaded',
-          description: `${type === 'before' ? 'Before' : 'After'} image uploaded successfully`,
-        });
-      } else {
-        throw new Error(data.error || 'Upload failed');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Upload failed',
-        description: error.message || 'Failed to upload image',
-        variant: 'destructive',
-      });
-    } finally {
-      setUploading(false);
-    }
+        setFormData(prev => ({ ...prev, [type === 'before' ? 'beforeImage' : 'afterImage']: data.url }));
+        toast({ title: '✅ Uploaded', description: `${type === 'before' ? 'Before' : 'After'} image ready` });
+      } else throw new Error(data.error || 'Upload failed');
+    } catch (err: any) {
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+    } finally { setUploading(false); }
   };
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.title.trim()) newErrors.title = 'Title is required';
-    if (formData.title.length > 100) newErrors.title = 'Title must be under 100 characters';
-    
-    if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (formData.description.length < 50) newErrors.description = 'Description must be at least 50 characters';
-    if (formData.description.length > 500) newErrors.description = 'Description must be under 500 characters';
-
-    if (!formData.beforeImage) newErrors.beforeImage = 'Before image is required';
-    if (!formData.afterImage) newErrors.afterImage = 'After image is required';
-
-    if (formData.selectedStyles.length === 0) {
-      newErrors.styles = 'Select at least one style';
-    }
-    if (formData.selectedStyles.length > 5) {
-      newErrors.styles = 'Maximum 5 styles allowed';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const validateForm = () => {
+    const e: Record<string, string> = {};
+    if (!formData.title.trim())                       e.title       = 'Title is required';
+    if (formData.title.length > 100)                  e.title       = 'Title must be under 100 characters';
+    if (!formData.description.trim())                 e.description = 'Description is required';
+    if (formData.description.length < 50)             e.description = 'Minimum 50 characters';
+    if (formData.description.length > 500)            e.description = 'Maximum 500 characters';
+    if (!formData.beforeImage)                        e.beforeImage = 'Before image is required';
+    if (!formData.afterImage)                         e.afterImage  = 'After image is required';
+    if (formData.selectedStyles.length === 0)         e.styles      = 'Select at least one style';
+    if (formData.selectedStyles.length > 5)           e.styles      = 'Maximum 5 styles';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validateForm()) {
-      toast({
-        title: 'Form Incomplete',
-        description: 'Please fix the errors and try again',
-        variant: 'destructive',
-      });
+      toast({ title: 'Form Incomplete', description: 'Please fix the errors and try again', variant: 'destructive' });
       return;
     }
-
     setSubmitting(true);
-
     try {
       const token = await getToken();
-
-      const payload = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        beforeImage: formData.beforeImage,
-        afterImage: formData.afterImage,
-        styles: formData.selectedStyles,
-        location: formData.location.trim() || undefined,
-        projectCost: formData.projectCost ? parseInt(formData.projectCost) : undefined,
-        status: formData.status,
-      };
-
       const res = await fetch('http://localhost:5000/api/inspirations', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          beforeImage: formData.beforeImage,
+          afterImage: formData.afterImage,
+          styles: formData.selectedStyles,
+          location: formData.location.trim() || undefined,
+          projectCost: formData.projectCost ? parseInt(formData.projectCost) : undefined,
+          status: formData.status,
+        }),
       });
-
       const data = await res.json();
-
       if (data.success) {
-        toast({
-          title: '✨ Inspiration Posted!',
-          description: 'Your work has been published to the inspiration gallery',
-        });
+        toast({ title: '✨ Published!', description: 'Your work is now in the inspiration gallery' });
         navigate('/inspiration');
-      } else {
-        throw new Error(data.error || 'Failed to post');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to post inspiration',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
+      } else throw new Error(data.error || 'Failed to post');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally { setSubmitting(false); }
   };
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
-        {/* Header */}
-        <section className="container mx-auto px-4 lg:px-8 pt-24 pb-12">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 mb-4">
-              <div>
-                <h1 className="font-display text-4xl font-bold">Share Your Work</h1>
-                <p className="text-muted-foreground mt-1">
-                  Inspire clients and showcase your design expertise
-                </p>
-              </div>
-            </div>
+      <div className="min-h-screen bg-gradient-to-b from-primary/4 via-background to-background">
 
-            {/* Benefits */}
-            <div className="grid md:grid-cols-3 gap-4 mt-8">
-              <Card className="p-4 bg-gradient-to-br from-primary/10 to-primary/5">
-                <Eye className="w-8 h-8 text-primary mb-2" />
-                <h3 className="font-bold mb-1">Get Discovered</h3>
-                <p className="text-sm text-muted-foreground">
-                  Clients browse inspirations daily
-                </p>
-              </Card>
-              <Card className="p-4 bg-gradient-to-br from-accent/10 to-accent/5">
-                <Sparkles className="w-8 h-8 text-accent mb-2" />
-                <h3 className="font-bold mb-1">Build Credibility</h3>
-                <p className="text-sm text-muted-foreground">
-                  Showcase your best work
-                </p>
-              </Card>
-              <Card className="p-4 bg-gradient-to-br from-green-500/10 to-green-500/5">
-                <DollarSign className="w-8 h-8 text-green-600 mb-2" />
-                <h3 className="font-bold mb-1">Generate Leads</h3>
-                <p className="text-sm text-muted-foreground">
-                  Direct hire from inspiration posts
-                </p>
-              </Card>
+        {/* ── Page header ── */}
+        <div className="border-b bg-background/80 backdrop-blur-md sticky top-16 lg:top-20 z-30">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+              <div>
+                <h1 className="font-display text-xl sm:text-2xl font-bold">Share Your Work</h1>
+                <p className="text-sm text-muted-foreground hidden sm:block">Inspire clients and showcase your design expertise</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/8 border border-primary/15">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-semibold text-primary">Designer</span>
+                </div>
+              </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Form */}
-        <section className="container mx-auto px-4 lg:px-8 pb-24">
-          <Card className="max-w-4xl mx-auto p-8 lg:p-12 shadow-xl">
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Title */}
-              <div className="space-y-3">
-                <Label htmlFor="title" className="text-base font-semibold">
-                  Project Title *
-                </Label>
-                <Input
-                  id="title"
-                  placeholder="e.g., Modern Living Room Transformation"
-                  value={formData.title}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  className={cn('h-12 text-lg', errors.title && 'border-destructive')}
-                  maxLength={100}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{errors.title || 'A catchy, descriptive title'}</span>
-                  <span className={formData.title.length > 90 ? 'text-amber-500' : ''}>
-                    {formData.title.length}/100
-                  </span>
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 max-w-3xl">
+
+          {/* ── Benefit pills ── */}
+          {/* Mobile: first 2 in a row, third centered below. Desktop: 3-col */}
+          <div className="mb-6 sm:hidden space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: Eye,      color: 'text-primary',    bg: 'bg-primary/8 border-primary/15',     title: 'Get Discovered',   sub: 'Clients browse daily' },
+                { icon: Sparkles, color: 'text-secondary',  bg: 'bg-secondary/8 border-secondary/15', title: 'Build Credibility', sub: 'Showcase your best work' },
+              ].map(({ icon: Icon, color, bg, title, sub }) => (
+                <div key={title} className={`flex items-center gap-2.5 p-3.5 rounded-2xl border ${bg}`}>
+                  <div className={`w-8 h-8 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-4 h-4 ${color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm leading-tight">{title}</p>
+                    <p className="text-xs text-muted-foreground leading-tight mt-0.5">{sub}</p>
+                  </div>
                 </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-3">
-                <Label htmlFor="description" className="text-base font-semibold">
-                  Project Description *
-                </Label>
-                <Textarea
-                  id="description"
-                  rows={5}
-                  placeholder="Describe the transformation, design approach, materials used, and what makes this project special..."
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  className={cn('resize-none leading-relaxed', errors.description && 'border-destructive')}
-                  maxLength={500}
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{errors.description || 'Minimum 50 characters'}</span>
-                  <span className={formData.description.length > 450 ? 'text-amber-500' : ''}>
-                    {formData.description.length}/500
-                  </span>
+              ))}
+            </div>
+            {/* Third pill centered */}
+            <div className="flex justify-center">
+              <div className="flex items-center gap-2.5 p-3.5 rounded-2xl border bg-emerald-50 border-emerald-200 w-full max-w-[260px]">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="w-4 h-4 text-emerald-600" />
                 </div>
-              </div>
-
-              {/* Before/After Images */}
-              <div className="space-y-6">
                 <div>
-                  <Label className="text-base font-semibold">Before & After Images *</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Upload high-quality images showing the transformation
-                  </p>
+                  <p className="font-semibold text-sm leading-tight">Generate Leads</p>
+                  <p className="text-xs text-muted-foreground leading-tight mt-0.5">Direct hire from posts</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop: 3-col */}
+          <div className="hidden sm:grid sm:grid-cols-3 gap-3 mb-6">
+            {[
+              { icon: Eye,       color: 'text-primary',    bg: 'bg-primary/8 border-primary/15',     title: 'Get Discovered',   sub: 'Clients browse daily' },
+              { icon: Sparkles,  color: 'text-secondary',  bg: 'bg-secondary/8 border-secondary/15', title: 'Build Credibility', sub: 'Showcase your best work' },
+              { icon: DollarSign,color: 'text-emerald-600',bg: 'bg-emerald-50 border-emerald-200',   title: 'Generate Leads',   sub: 'Direct hire from posts' },
+            ].map(({ icon: Icon, color, bg, title, sub }) => (
+              <div key={title} className={`flex items-center gap-3 p-4 rounded-2xl border ${bg}`}>
+                <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
+                  <Icon className={`w-5 h-5 ${color}`} />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{title}</p>
+                  <p className="text-xs text-muted-foreground">{sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Main form ── */}
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-6">
+
+              {/* Title */}
+              <div className="bg-gradient-to-br from-primary/5 to-primary/[0.02] rounded-2xl border border-primary/15 p-5 sm:p-6 space-y-4">
+                <h2 className="font-semibold text-base">Project Info</h2>
+
+                <div className="space-y-2">
+                  <Label className="font-semibold text-sm">Project Title *</Label>
+                  <Input
+                    placeholder="e.g., Modern Living Room Transformation"
+                    value={formData.title}
+                    onChange={e => setFormData({ ...formData, title: e.target.value })}
+                    className={cn('h-11', errors.title && 'border-destructive')}
+                    maxLength={100}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {errors.title
+                      ? <span className="text-destructive flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.title}</span>
+                      : <span>A catchy, descriptive title</span>
+                    }
+                    <span className={formData.title.length > 90 ? 'text-amber-500' : ''}>{formData.title.length}/100</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="font-semibold text-sm">Description *</Label>
+                  <Textarea
+                    rows={5}
+                    placeholder="Describe the transformation, design approach, materials used, and what makes this project special…"
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    className={cn('resize-none leading-relaxed', errors.description && 'border-destructive')}
+                    maxLength={500}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    {errors.description
+                      ? <span className="text-destructive flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.description}</span>
+                      : <span>Minimum 50 characters</span>
+                    }
+                    <span className={formData.description.length > 450 ? 'text-amber-500' : ''}>{formData.description.length}/500</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Before / After Images */}
+              <div className="bg-gradient-to-br from-secondary/5 to-secondary/[0.02] rounded-2xl border border-secondary/15 p-5 sm:p-6 space-y-4">
+                <div>
+                  <h2 className="font-semibold text-base">Before & After Images *</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Upload high-quality images showing the transformation</p>
                 </div>
 
                 <AspectRatioGuide />
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Before Image */}
-                  <div>
-                    <Label className="text-sm mb-2 block">Before Image</Label>
-                    <div
-                      className={cn(
-                        'relative aspect-[4/5] rounded-xl border-2 border-dashed overflow-hidden transition-all',
-                        formData.beforeImage
-                          ? 'border-primary bg-primary/5'
-                          : errors.beforeImage
-                          ? 'border-destructive bg-destructive/5'
-                          : 'border-muted-foreground/30 hover:border-primary bg-muted/30'
-                      )}
-                    >
-                      {formData.beforeImage ? (
-                        <>
-                          <img
-                            src={formData.beforeImage}
-                            alt="Before"
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, beforeImage: '' })}
-                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-destructive text-white flex items-center justify-center hover:bg-destructive/90 transition"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                          <Badge className="absolute bottom-2 left-2 bg-black/60 text-white">
-                            Before
-                          </Badge>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => beforeInputRef.current?.click()}
-                          disabled={uploadingBefore}
-                          className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary transition"
-                        >
-                          {uploadingBefore ? (
-                            <>
-                              <Loader2 className="w-12 h-12 animate-spin" />
-                              <span className="text-sm">Uploading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-12 h-12" />
-                              <span className="text-sm font-medium">Upload Before Image</span>
-                              <span className="text-xs">JPG, PNG (max 5MB)</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                      <input
-                        ref={beforeInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], 'before')}
-                      />
-                    </div>
-                    {errors.beforeImage && (
-                      <p className="text-sm text-destructive mt-2 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        {errors.beforeImage}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* After Image */}
-                  <div>
-                    <Label className="text-sm mb-2 block">After Image</Label>
-                    <div
-                      className={cn(
-                        'relative aspect-[4/5] rounded-xl border-2 border-dashed overflow-hidden transition-all',
-                        formData.afterImage
-                          ? 'border-primary bg-primary/5'
-                          : errors.afterImage
-                          ? 'border-destructive bg-destructive/5'
-                          : 'border-muted-foreground/30 hover:border-primary bg-muted/30'
-                      )}
-                    >
-                      {formData.afterImage ? (
-                        <>
-                          <img
-                            src={formData.afterImage}
-                            alt="After"
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, afterImage: '' })}
-                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-destructive text-white flex items-center justify-center hover:bg-destructive/90 transition"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                          <Badge className="absolute bottom-2 left-2 bg-primary">
-                            After
-                          </Badge>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => afterInputRef.current?.click()}
-                          disabled={uploadingAfter}
-                          className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary transition"
-                        >
-                          {uploadingAfter ? (
-                            <>
-                              <Loader2 className="w-12 h-12 animate-spin" />
-                              <span className="text-sm">Uploading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-12 h-12" />
-                              <span className="text-sm font-medium">Upload After Image</span>
-                              <span className="text-xs">JPG, PNG (max 5MB)</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                      <input
-                        ref={afterInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0], 'after')}
-                      />
-                    </div>
-                    {errors.afterImage && (
-                      <p className="text-sm text-destructive mt-2 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        {errors.afterImage}
-                      </p>
-                    )}
-                  </div>
+                <div className="grid grid-cols-2 gap-3 sm:gap-5">
+                  <ImageUploadZone
+                    label="Before"
+                    badge="Before"
+                    badgeClass="bg-black/70"
+                    imageUrl={formData.beforeImage}
+                    uploading={uploadingBefore}
+                    error={errors.beforeImage}
+                    onUpload={f => uploadImage(f, 'before')}
+                    onRemove={() => setFormData(p => ({ ...p, beforeImage: '' }))}
+                  />
+                  <ImageUploadZone
+                    label="After"
+                    badge="After"
+                    badgeClass="bg-primary"
+                    imageUrl={formData.afterImage}
+                    uploading={uploadingAfter}
+                    error={errors.afterImage}
+                    onUpload={f => uploadImage(f, 'after')}
+                    onRemove={() => setFormData(p => ({ ...p, afterImage: '' }))}
+                  />
                 </div>
               </div>
 
               {/* Design Styles */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-base font-semibold">Design Styles * (Max 5)</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Help clients find your work by selecting relevant styles
-                  </p>
+              <div className="bg-gradient-to-br from-primary/5 to-primary/[0.02] rounded-2xl border border-primary/15 p-5 sm:p-6 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-semibold text-base">Design Styles *</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">Help clients find your work — select up to 5</p>
+                  </div>
+                  {formData.selectedStyles.length > 0 && (
+                    <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full flex-shrink-0">
+                      {formData.selectedStyles.length}/5
+                    </span>
+                  )}
                 </div>
+
                 {errors.styles && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.styles}
+                  <p className="flex items-center gap-1 text-sm text-destructive">
+                    <AlertCircle className="w-3.5 h-3.5" />{errors.styles}
                   </p>
                 )}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {DESIGN_STYLES.map(style => {
-                    const isSelected = formData.selectedStyles.includes(style);
+                    const selected = formData.selectedStyles.includes(style);
+                    const maxed = !selected && formData.selectedStyles.length >= 5;
                     return (
                       <button
                         key={style}
                         type="button"
-                        onClick={() => toggleStyle(style)}
+                        onClick={() => !maxed && toggleStyle(style)}
+                        disabled={maxed}
                         className={cn(
-                          'flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left',
-                          isSelected
-                            ? 'border-primary bg-primary/10 shadow-sm'
-                            : 'border-border hover:border-primary/40 hover:bg-accent/5'
+                          'flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all text-sm',
+                          selected  ? 'border-primary bg-primary/8 text-primary font-semibold' :
+                          maxed     ? 'border-border bg-muted/30 text-muted-foreground opacity-50 cursor-not-allowed' :
+                                      'border-border hover:border-primary/40 bg-card font-medium'
                         )}
                       >
-                        <div
-                          className={cn(
-                            'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
-                            isSelected ? 'bg-primary border-primary' : 'border-input'
-                          )}
-                        >
-                          {isSelected && (
-                            <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                          )}
+                        <div className={cn(
+                          'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                          selected ? 'bg-primary border-primary' : 'border-muted-foreground/30'
+                        )}>
+                          {selected && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
                         </div>
-                        <span className="text-sm font-medium">{style}</span>
+                        {style}
                       </button>
                     );
                   })}
                 </div>
-                {formData.selectedStyles.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {formData.selectedStyles.length}/5 styles selected
-                  </p>
-                )}
               </div>
 
-              {/* Optional Fields */}
-              <div className="border-t pt-8">
-                <h3 className="font-semibold text-lg mb-4">Optional Details</h3>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Location */}
+              {/* Optional fields */}
+              <div className="bg-gradient-to-br from-secondary/5 to-secondary/[0.02] rounded-2xl border border-secondary/15 p-5 sm:p-6 space-y-4">
+                <div>
+                  <h2 className="font-semibold text-base">Optional Details</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Extra context helps clients connect with your work</p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="location" className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      Location
+                    <Label className="font-semibold text-sm flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" /> Location
                     </Label>
                     <Input
-                      id="location"
                       placeholder="e.g., Westlands, Nairobi"
                       value={formData.location}
                       onChange={e => setFormData({ ...formData, location: e.target.value })}
                       className="h-11"
                     />
                   </div>
-
-                  {/* Project Cost */}
                   <div className="space-y-2">
-                    <Label htmlFor="cost" className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4" />
-                      Project Cost (KSh)
+                    <Label className="font-semibold text-sm flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5" /> Project Cost (KSh)
                     </Label>
                     <Input
-                      id="cost"
                       type="number"
                       placeholder="e.g., 500000"
                       value={formData.projectCost}
                       onChange={e => setFormData({ ...formData, projectCost: e.target.value })}
                       className="h-11"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Optional - helps clients gauge budget
-                    </p>
+                    <p className="text-xs text-muted-foreground">Helps clients gauge their budget</p>
                   </div>
                 </div>
               </div>
 
               {/* Submit */}
-              <div className="flex gap-4 pt-6">
+              <div className="flex gap-3 pb-8">
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
+                  size="default"
                   onClick={() => navigate('/inspiration')}
-                  className="flex-1"
                   disabled={submitting}
+                  className="flex-1 sm:flex-none sm:min-w-[120px]"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  size="lg"
-                  className="flex-1 shadow-lg hover:shadow-xl transition-all"
+                  size="default"
                   disabled={submitting || uploadingBefore || uploadingAfter}
+                  className="flex-1 gap-2 shadow-sm"
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5 mr-2" />
-                      Publish Inspiration
-                    </>
-                  )}
+                  {submitting
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Publishing…</>
+                    : <><Sparkles className="w-4 h-4" />Publish Inspiration</>
+                  }
                 </Button>
               </div>
-            </form>
-          </Card>
-        </section>
+            </div>
+          </form>
+        </div>
       </div>
     </Layout>
   );
