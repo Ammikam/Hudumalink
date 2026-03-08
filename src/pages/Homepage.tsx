@@ -73,7 +73,7 @@ export default function HomePage() {
       <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-hero-pattern">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 pointer-events-none" />
 
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20 w-full">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12 w-full">
           <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
             {/* ── Left column ── */}

@@ -111,7 +111,7 @@ export function InspirationTeaser() {
   }
 
   return (
-    <section className="py-16 lg:py-24 bg-gradient-to-b from-transparent to-muted/30">
+    <section className="py-2 lg:py-4 bg-gradient-to-b from-transparent to-muted/30">
       <div className="container mx-auto px-4 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
