@@ -1,25 +1,25 @@
+// src/components/Layout/Layout.tsx - WITH MOBILE NAV
 import type { ReactNode } from 'react';
 import { Navbar } from './Navbar';
-import { Footer } from './Footer';
 import { MobileNav } from './MobileNav';
-import { Toaster } from '@/components/ui/toaster';
 
 interface LayoutProps {
   children: ReactNode;
-  hideFooter?: boolean;
-  hideMobileNav?: boolean;
 }
 
-export function Layout({ children, hideFooter = false, hideMobileNav = false }: LayoutProps) {
+export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-background">
+      {/* Top navigation */}
       <Navbar />
-      <main className="flex-1 pt-16 lg:pt-20 pb-16 lg:pb-0">
+      
+      {/* Main content - Add padding bottom for mobile nav */}
+      <main className="pt-16 lg:pt-20 pb-20 lg:pb-0">
         {children}
       </main>
-      {!hideFooter && <Footer />}
-      {!hideMobileNav && <MobileNav />}
-      <Toaster/>
+      
+      {/* Mobile bottom navigation */}
+      <MobileNav />
     </div>
   );
 }

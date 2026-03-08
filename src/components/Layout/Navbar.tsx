@@ -1,9 +1,9 @@
-// src/components/Layout/Navbar.tsx - WITH PROFILE MENU
+// src/components/Layout/Navbar.tsx - COMPLETE VERSION
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Menu, X, Sun, Moon, Sparkles, Briefcase, User, ChevronDown,
+  Sun, Moon, Sparkles, Briefcase, User, ChevronDown, Plus
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useStore } from '../../store/use-store';
@@ -13,17 +13,14 @@ import {
 } from '@clerk/clerk-react';
 
 const designerNavLinks = [
-  { href: '/designer/open-projects', label: 'Open Projects' },
+  { href: '/designer/open-projects', label: 'Browse Projects' },
   { href: '/designer/invites', label: 'Invites' },
-  { href: '/designer/proposals', label: 'My Proposals' },
+  { href: '/designer/proposals', label: 'Proposals' },
   { href: '/designer/active-projects', label: 'Active Projects' },
-  { href: '/designer/add-inspiration', label: 'Add Inspiration' },
-  { href: '/designer/profile', label: 'My Profile' },
-  { href: '/designer/earnings', label: 'Earnings & Reviews' },
+  { href: '/designer/earnings', label: 'Earnings' },
 ];
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
   const [showRoleSwitch, setShowRoleSwitch] = useState(false);
   const [isApprovedDesigner, setIsApprovedDesigner] = useState(false);
 
@@ -58,15 +55,14 @@ export function Navbar() {
     checkDesignerStatus();
   }, [isSignedIn, getToken]);
 
-  /** Client nav links (auth-aware) */
+  /** Client nav links - now includes Post Project */
   const clientNavLinks = [
     { href: '/', label: 'Home' },
-    { href: '/inspiration', label: 'Inspiration' },
-    { href: '/designers', label: 'Designers' },
+    { href: '/inspiration', label: 'Discover' },
+    { href: '/designers', label: 'Find Designers' },
     ...(isSignedIn
       ? [{ href: '/dashboard/client', label: 'Dashboard' }]
       : []),
-    { href: '/post-project', label: 'Post Project' },
   ];
 
   const currentNavLinks = isDesignerMode ? designerNavLinks : clientNavLinks;
@@ -128,7 +124,27 @@ export function Navbar() {
           </div>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 lg:gap-4">
+            {/* ✅ Post Project Button - Desktop (Client mode only) */}
+            {!isDesignerMode && (
+              <Link to="/post-project" className="hidden lg:block">
+                <Button size="sm" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Post Project
+                </Button>
+              </Link>
+            )}
+
+            {/* ✅ Add Inspiration Button - Desktop (Designer mode only) */}
+            {isDesignerMode && (
+              <Link to="/designer/add-inspiration" className="hidden lg:block">
+                <Button size="sm" className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Share Work
+                </Button>
+              </Link>
+            )}
+
             {/* Dark Mode */}
             <Button
               variant="ghost"
@@ -136,10 +152,10 @@ export function Navbar() {
               onClick={toggleDarkMode}
               className="hidden lg:flex"
             >
-              {isDarkMode ? <Sun /> : <Moon />}
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
 
-            {/* Role Switcher/Dropdown */}
+            {/* Role Switcher - Desktop only */}
             <SignedIn>
               <div className="hidden lg:block relative">
                 <Button
@@ -179,7 +195,7 @@ export function Navbar() {
                         className="absolute right-0 mt-2 w-56 bg-background border rounded-xl shadow-xl z-50"
                       >
                         <div className="p-2 space-y-1">
-                          {/* Always show Client View */}
+                          {/* Client View */}
                           <Link
                             to="/dashboard/client"
                             onClick={() => setShowRoleSwitch(false)}
@@ -192,7 +208,7 @@ export function Navbar() {
                             <span className="font-medium">Client View</span>
                           </Link>
 
-                          {/* Designer View or Become a Designer CTA */}
+                          {/* Designer View or Become a Designer */}
                           {isApprovedDesigner ? (
                             <Link
                               to="/designer/open-projects"
@@ -233,121 +249,28 @@ export function Navbar() {
             </SignedOut>
 
             <SignedIn>
-              {/* ✅ UserButton with custom menu items including Profile */}
-              <UserButton 
-                afterSignOutUrl="/"
-                appearance={{
-                  elements: {
-                    avatarBox: "w-10 h-10 rounded-full ring-2 ring-border hover:ring-primary transition-all"
-                  }
-                }}
-              >
-                {/* ✅ Add custom Profile menu item */}
-                <UserButton.MenuItems>
-                  <UserButton.Link
-                    label="Profile Settings"
-                    labelIcon={<User className="w-4 h-4" />}
-                    href="/profile"
-                  />
-                </UserButton.MenuItems>
-              </UserButton>
+              {/* UserButton - Desktop only */}
+              <div className="hidden lg:block">
+                <UserButton 
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-10 h-10 rounded-full ring-2 ring-border hover:ring-primary transition-all"
+                    }
+                  }}
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Link
+                      label="Profile Settings"
+                      labelIcon={<User className="w-4 h-4" />}
+                      href="/profile"
+                    />
+                  </UserButton.MenuItems>
+                </UserButton>
+              </div>
             </SignedIn>
-
-            {/* Mobile Toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              {isOpen ? <X /> : <Menu />}
-            </Button>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="lg:hidden border-t mt-2 pt-4 pb-4 space-y-3"
-            >
-              {currentNavLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    'block py-2',
-                    isActive(link.href)
-                      ? 'text-primary'
-                      : 'text-muted-foreground'
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
-
-              {/* Role switcher - mobile */}
-              <SignedIn>
-                <div className="pt-3 mt-3 border-t space-y-2">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide px-2">
-                    Switch View
-                  </p>
-
-                  {/* Always show Client View */}
-                  <Link
-                    to="/dashboard/client"
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      'flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted',
-                      !isDesignerMode && 'bg-muted'
-                    )}
-                  >
-                    <User className="w-4 h-4" />
-                    <span>Client View</span>
-                  </Link>
-
-                  {/* Designer View or Become a Designer CTA */}
-                  {isApprovedDesigner ? (
-                    <Link
-                      to="/designer/open-projects"
-                      onClick={() => setIsOpen(false)}
-                      className={cn(
-                        'flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted',
-                        isDesignerMode && 'bg-muted'
-                      )}
-                    >
-                      <Briefcase className="w-4 h-4" />
-                      <span>Designer View</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/become-designer"
-                      onClick={() => setIsOpen(false)}
-                      className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted"
-                    >
-                      <Briefcase className="w-4 h-4" />
-                      <span>Become a Designer</span>
-                    </Link>
-                  )}
-
-                  {/* ✅ Profile link for mobile */}
-                  <Link
-                    to="/profile"
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-muted"
-                  >
-                    <User className="w-4 h-4" />
-                    <span>Profile Settings</span>
-                  </Link>
-                </div>
-              </SignedIn>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </nav>
     </header>
   );
