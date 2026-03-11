@@ -1,4 +1,4 @@
-// src/pages/HomePage.tsx
+// src/pages/HomePage.tsx - UPDATED FOR currentPhotos
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -24,6 +24,9 @@ interface PlatformStats {
     location: string;
     budget: number;
     timeline: string;
+    currentPhotos?: string[];    // ✅ NEW
+    beforePhotos?: string[];     // ✅ Backwards compatibility
+    afterPhotos?: string[];
     photos: string[];
     clientName: string;
     designer: {
@@ -60,12 +63,28 @@ export default function HomePage() {
     averageRating: 0,
   };
 
-  const photos = stats?.featuredProject?.photos ?? [];
-  const hasMultiplePhotos = photos.length >= 2;
-  const beforeImage = photos[0] ?? 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800';
-  const afterImage = hasMultiplePhotos
-    ? photos[1]
-    : (photos[0] ?? 'https://images.unsplash.com/photo-1618221195710-dd6dabb60b29?w=800');
+  // ✅ UPDATED: Smart photo selection for before/after slider
+  const featuredProject = stats?.featuredProject;
+  
+  // Collect all available photos
+  const currentPhotos = featuredProject?.currentPhotos || featuredProject?.beforePhotos || [];
+  const afterPhotos = featuredProject?.afterPhotos || [];
+  const allPhotos = featuredProject?.photos || [];
+  
+  // Before image: first from current space, or first from all photos
+  const beforeImage = currentPhotos[0] 
+    || allPhotos[0] 
+    || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800';
+  
+  // After image: 
+  // 1. First after photo (if exists)
+  // 2. Second photo from all photos array (simulates before/after)
+  // 3. Second current photo (if we have multiple)
+  // 4. Fallback image
+  const afterImage = afterPhotos[0] 
+    || (allPhotos.length >= 2 ? allPhotos[1] : null)
+    || (currentPhotos.length >= 2 ? currentPhotos[1] : null)
+    || 'https://images.unsplash.com/photo-1618221195710-dd6dabb60b29?w=800';
 
   return (
     <Layout>
@@ -83,11 +102,6 @@ export default function HomePage() {
               transition={{ duration: 0.55 }}
               className="space-y-6"
             >
-              {/*
-                Ticker sits here — inline-flex so it only takes as much width
-                as its content (the pill shape), left-aligned naturally.
-                max-w-full + overflow-hidden prevent it from ever overflowing on mobile.
-              */}
               <motion.div
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -164,9 +178,12 @@ export default function HomePage() {
               transition={{ duration: 0.55, delay: 0.15 }}
               className="relative mt-4 lg:mt-0"
             >
+              {/* ✅ UPDATED: Labels changed to "Before Design" / "After Design" */}
               <BeforeAfterSlider
                 beforeImage={beforeImage}
                 afterImage={afterImage}
+                beforeLabel="Before Design"
+                afterLabel="After Design"
                 className="aspect-[4/3] rounded-2xl shadow-strong w-full"
               />
 
@@ -181,7 +198,7 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Designer badge — hidden on small screens to avoid overflow issues */}
+              {/* Designer badge */}
               {stats?.featuredProject?.designer && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.85 }}
