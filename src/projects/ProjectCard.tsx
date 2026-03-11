@@ -203,6 +203,7 @@ export function ProjectCard({
       {showModal && (
         <ProjectDetailModal
           project={project}
+          open={showModal}
           variant={variant}
           alreadySent={alreadySent}
           onClose={() => setShowModal(false)}

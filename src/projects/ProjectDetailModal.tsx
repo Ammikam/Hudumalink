@@ -3,73 +3,120 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, MapPin, DollarSign, Calendar, Check, ChevronLeft, ChevronRight,
-  Lightbulb, Camera, MessageSquare, ExternalLink, Images,
+  Lightbulb, Camera, MessageSquare, ExternalLink, Images, User, Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { formatCurrency } from '@/data/MockData';
 import { cn } from '@/lib/utils';
 
-interface ProjectDetailModalProps {
-  project: {
-    _id: string;
-    title: string;
-    description: string;
-    location: string;
-    budget: number;
-    timeline: string;
-    styles: string[];
-    photos: string[];
-    beforePhotos?: string[];
-    inspirationPhotos?: string[];
-    inspirationNotes?: string;
-    status: string;
-    createdAt: string;
-    client?: { name: string; avatar?: string };
+interface ComponentProject {
+  _id: string;
+  title: string;
+  description: string;
+  location: string;
+  budget: number;
+  timeline: string;
+  status: string;
+  styles?: string[];
+  // ✅ currentPhotos is primary; beforePhotos kept for backwards compat
+  currentPhotos?: string[];
+  beforePhotos?: string[];
+  inspirationPhotos?: string[];
+  inspirationNotes?: string;
+  afterPhotos?: string[];
+  photos?: string[];
+  client?: {
+    name: string;
+    email?: string;
+    phone?: string;
+    avatar?: string;
   };
+  designer?: {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+}
+
+interface Props {
+  project: ComponentProject | null;
+  open: boolean;
+  onClose: () => void;
+  // Invite pattern
+  onAccept?: (projectId: string) => void;
+  onDecline?: (projectId: string) => void;
+  showActions?: boolean;
+  // ProjectCard pattern
   variant?: 'open' | 'active';
   alreadySent?: boolean;
-  onClose: () => void;
   onAction?: () => void;
   actionLabel?: string;
 }
 
 export function ProjectDetailModal({
   project,
+  open,
+  onClose,
+  onAccept,
+  onDecline,
+  showActions = false,
   variant = 'open',
   alreadySent,
-  onClose,
   onAction,
   actionLabel = 'Send Proposal',
-}: ProjectDetailModalProps) {
+}: Props) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showFullscreen, setShowFullscreen]       = useState(false);
-  const [currentSection, setCurrentSection]       = useState<'before' | 'inspiration'>('before');
+  const [currentSection, setCurrentSection]       = useState<'current' | 'inspiration' | 'after'>('current');
 
-  const beforePhotos      = project.beforePhotos      || [];
+  if (!project) return null;
+
+  // ✅ currentPhotos is primary, beforePhotos is fallback
+  const currentPhotos     = project.currentPhotos || project.beforePhotos || [];
   const inspirationPhotos = project.inspirationPhotos || [];
-  const hasBeforePhotos      = beforePhotos.length > 0;
+  const afterPhotos       = project.afterPhotos || [];
+  const fallbackPhotos    = project.photos || [];
+
+  const hasCurrentPhotos     = currentPhotos.length > 0;
   const hasInspirationPhotos = inspirationPhotos.length > 0;
-  const hasSeparatePhotos    = hasBeforePhotos || hasInspirationPhotos;
-  const fallbackPhotos       = project.photos || [];
+  const hasAfterPhotos       = afterPhotos.length > 0;
+  const hasSeparatePhotos    = hasCurrentPhotos || hasInspirationPhotos || hasAfterPhotos;
 
   const displayPhotos = hasSeparatePhotos
-    ? (currentSection === 'before' ? beforePhotos : inspirationPhotos)
+    ? currentSection === 'current'
+      ? currentPhotos
+      : currentSection === 'inspiration'
+      ? inspirationPhotos
+      : afterPhotos
     : fallbackPhotos;
 
   const totalPhotos = hasSeparatePhotos
-    ? beforePhotos.length + inspirationPhotos.length
+    ? currentPhotos.length + inspirationPhotos.length + afterPhotos.length
     : fallbackPhotos.length;
 
+  // Section tabs — only include sections that have photos
+  const sectionTabs = [
+    hasCurrentPhotos     && { id: 'current'     as const, icon: Camera,   short: 'Current', count: currentPhotos.length,     activeBg: 'bg-primary' },
+    hasInspirationPhotos && { id: 'inspiration' as const, icon: Lightbulb, short: 'Inspo',   count: inspirationPhotos.length, activeBg: 'bg-secondary' },
+    hasAfterPhotos       && { id: 'after'        as const, icon: Sparkles,  short: 'After',   count: afterPhotos.length,        activeBg: 'bg-emerald-600' },
+  ].filter(Boolean) as { id: 'current' | 'inspiration' | 'after'; icon: any; short: string; count: number; activeBg: string }[];
+
+  // Set initial section to first one that has photos
   useEffect(() => {
-    if (hasSeparatePhotos) setCurrentSection(hasBeforePhotos ? 'before' : 'inspiration');
-  }, [hasBeforePhotos, hasInspirationPhotos, hasSeparatePhotos]);
+    if (!open) return;
+    if (hasCurrentPhotos)          setCurrentSection('current');
+    else if (hasInspirationPhotos) setCurrentSection('inspiration');
+    else if (hasAfterPhotos)       setCurrentSection('after');
+  }, [project._id, open]);
 
   useEffect(() => {
+    if (!open) return;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
-  }, []);
+  }, [open]);
 
   useEffect(() => { setCurrentImageIndex(0); }, [currentSection]);
 
@@ -78,12 +125,14 @@ export function ProjectDetailModal({
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const formatCurrency = (n: number) => `KSh ${n.toLocaleString()}`;
+
+  if (!open) return null;
 
   return (
     <AnimatePresence>
       {/* ── Backdrop ── */}
       <motion.div
+        key="backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -91,9 +140,10 @@ export function ProjectDetailModal({
         onClick={onClose}
       />
 
-      {/* ── Modal — bottom sheet on mobile, centered dialog on lg ── */}
+      {/* ── Modal: bottom-sheet on mobile, centered dialog on lg ── */}
       <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-4 pointer-events-none">
         <motion.div
+          key="modal"
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
@@ -102,12 +152,12 @@ export function ProjectDetailModal({
           style={{ maxHeight: '92vh' }}
           onClick={e => e.stopPropagation()}
         >
-          {/* ── Mobile drag handle ── */}
+          {/* Mobile drag handle */}
           <div className="flex justify-center pt-3 pb-1 lg:hidden">
             <div className="w-10 h-1.5 bg-muted-foreground/20 rounded-full" />
           </div>
 
-          {/* ── Close button (always visible) ── */}
+          {/* Close button */}
           <button
             onClick={onClose}
             className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white flex items-center justify-center transition"
@@ -115,10 +165,10 @@ export function ProjectDetailModal({
             <X className="w-4 h-4" />
           </button>
 
-          {/* ── Layout: stacked on mobile, 2-col on lg ── */}
+          {/* ── Stacked on mobile / two-col on lg ── */}
           <div className="flex flex-col lg:grid lg:grid-cols-2" style={{ maxHeight: 'calc(92vh - 1.5rem)' }}>
 
-            {/* ── Image panel ── */}
+            {/* ── Left: Image panel ── */}
             <div className="relative bg-muted h-56 sm:h-72 lg:h-full flex-shrink-0">
               {displayPhotos.length > 0 ? (
                 <div className="h-full relative group">
@@ -150,53 +200,50 @@ export function ProjectDetailModal({
                     </>
                   )}
 
-                  {/* Counter */}
+                  {/* Image counter */}
                   <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-full font-medium">
                     {currentImageIndex + 1} / {displayPhotos.length}
                   </div>
 
-                  {/* Fullscreen */}
+                  {/* Fullscreen button */}
                   <button
                     onClick={() => setShowFullscreen(true)}
                     className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2.5 py-1 rounded-lg hover:bg-black/80 transition flex items-center gap-1"
                   >
-                    <ExternalLink className="w-3 h-3" />
-                    Full
+                    <ExternalLink className="w-3 h-3" /> Full
                   </button>
 
-                  {/* Section tabs — only if both types exist */}
-                  {hasBeforePhotos && hasInspirationPhotos && (
+                  {/* Section tabs — only show if multiple photo types */}
+                  {sectionTabs.length > 1 && (
                     <div className="absolute top-3 left-3 flex gap-1.5">
-                      {[
-                        { id: 'before' as const, icon: Camera, label: 'Before', count: beforePhotos.length, active: 'bg-primary' },
-                        { id: 'inspiration' as const, icon: Lightbulb, label: 'Inspo', count: inspirationPhotos.length, active: 'bg-secondary' },
-                      ].map(({ id, icon: Icon, label, count, active }) => (
+                      {sectionTabs.map(({ id, icon: Icon, short, count, activeBg }) => (
                         <button
                           key={id}
                           onClick={() => setCurrentSection(id)}
                           className={cn(
                             'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-white transition',
-                            currentSection === id ? active : 'bg-black/40 backdrop-blur-sm hover:bg-black/60'
+                            currentSection === id ? activeBg : 'bg-black/40 backdrop-blur-sm hover:bg-black/60'
                           )}
                         >
                           <Icon className="w-3 h-3" />
-                          {label} ({count})
+                          {short} ({count})
                         </button>
                       ))}
                     </div>
                   )}
 
-                  {/* Single type badge */}
-                  {hasSeparatePhotos && !(hasBeforePhotos && hasInspirationPhotos) && (
-                    <div className="absolute top-3 left-3">
-                      <span className={cn(
-                        'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white',
-                        hasBeforePhotos ? 'bg-primary' : 'bg-secondary'
-                      )}>
-                        {hasBeforePhotos ? <><Camera className="w-3 h-3" /> Current Space</> : <><Lightbulb className="w-3 h-3" /> Inspiration</>}
-                      </span>
-                    </div>
-                  )}
+                  {/* Single section label */}
+                  {sectionTabs.length === 1 && (() => {
+                    const tab = sectionTabs[0];
+                    const Icon = tab.icon;
+                    return (
+                      <div className="absolute top-3 left-3">
+                        <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white', tab.activeBg)}>
+                          <Icon className="w-3 h-3" /> {tab.short}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   {/* Thumbnail strip */}
                   {displayPhotos.length > 1 && (
@@ -228,8 +275,9 @@ export function ProjectDetailModal({
               )}
             </div>
 
-            {/* ── Details panel ── */}
-            <div className="flex flex-col min-h-0">
+            {/* ── Right: Details panel ── */}
+            <div className="flex flex-col min-h-0 lg:h-full lg:max-h-[90vh]">
+
               {/* Scrollable body */}
               <div className="flex-1 overflow-y-auto p-5 sm:p-6 lg:p-7 space-y-5">
 
@@ -243,19 +291,21 @@ export function ProjectDetailModal({
                   <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold mb-2 leading-tight">
                     {project.title}
                   </h1>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {project.styles.map(style => (
-                      <span key={style} className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20 font-medium">
-                        {style}
-                      </span>
-                    ))}
-                  </div>
+                  {project.styles && project.styles.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {project.styles.map(style => (
+                        <span key={style} className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20 font-medium">
+                          {style}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">Posted {formatDate(project.createdAt)}</p>
                 </div>
 
                 {/* Description */}
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Description</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Description</p>
                   <p className="text-sm leading-relaxed">{project.description}</p>
                 </div>
 
@@ -266,30 +316,56 @@ export function ProjectDetailModal({
                       <Lightbulb className="w-4 h-4 text-secondary" />
                       <p className="font-semibold text-sm">Client's Vision</p>
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{project.inspirationNotes}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed italic">
+                      "{project.inspirationNotes}"
+                    </p>
                   </div>
                 )}
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { icon: MapPin,    label: 'Location', value: project.location,            color: '' },
-                    { icon: DollarSign,label: 'Budget',   value: formatCurrency(project.budget), color: 'text-primary font-bold' },
-                    { icon: Calendar,  label: 'Timeline', value: project.timeline,             color: '' },
-                    { icon: Images,    label: 'Photos',   value: hasSeparatePhotos
-                        ? [hasBeforePhotos && `${beforePhotos.length} before`, hasInspirationPhotos && `${inspirationPhotos.length} inspo`].filter(Boolean).join(' · ')
+                    { icon: MapPin,    label: 'Location', value: project.location,              extra: '' },
+                    { icon: DollarSign,label: 'Budget',   value: formatCurrency(project.budget), extra: 'text-primary font-bold' },
+                    { icon: Calendar,  label: 'Timeline', value: project.timeline,               extra: '' },
+                    { icon: Images,    label: 'Photos',
+                      value: hasSeparatePhotos
+                        ? [
+                            hasCurrentPhotos     && `${currentPhotos.length} current`,
+                            hasInspirationPhotos && `${inspirationPhotos.length} inspo`,
+                            hasAfterPhotos       && `${afterPhotos.length} after`,
+                          ].filter(Boolean).join(' · ')
                         : `${totalPhotos} total`,
-                      color: '' },
-                  ].map(({ icon: Icon, label, value, color }) => (
+                      extra: '' },
+                  ].map(({ icon: Icon, label, value, extra }) => (
                     <div key={label} className="p-3.5 rounded-xl bg-primary/5 border border-primary/10">
                       <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
                         <Icon className="w-3.5 h-3.5" />
                         <span className="text-xs font-medium">{label}</span>
                       </div>
-                      <p className={cn('text-sm font-semibold leading-tight', color)}>{value}</p>
+                      <p className={cn('text-sm font-semibold leading-tight', extra)}>{value}</p>
                     </div>
                   ))}
                 </div>
+
+                {/* Assigned designer */}
+                {project.designer && (
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                    <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-3">Assigned Designer</p>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10 ring-2 ring-emerald-200 flex-shrink-0">
+                        <AvatarImage src={project.designer.avatar} />
+                        <AvatarFallback className="text-sm bg-emerald-100 text-emerald-800 font-bold">
+                          {project.designer.name?.[0]?.toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-sm">{project.designer.name}</p>
+                        <p className="text-xs text-emerald-700">Designer</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Client */}
                 {project.client && (
@@ -311,12 +387,30 @@ export function ProjectDetailModal({
                 )}
               </div>
 
-              {/* ── Sticky footer CTA ── */}
+              {/* ── Sticky CTA footer ── */}
               <div className="flex-shrink-0 px-5 sm:px-6 lg:px-7 py-4 border-t bg-background flex gap-3">
                 <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none sm:min-w-[100px]">
                   Close
                 </Button>
-                {onAction && (
+
+                {/* Invite pattern */}
+                {showActions && onAccept && onDecline && (
+                  <>
+                    <Button onClick={() => onAccept(project._id)} className="flex-1">
+                      Accept Invite
+                    </Button>
+                    <Button
+                      onClick={() => onDecline(project._id)}
+                      variant="outline"
+                      className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/5"
+                    >
+                      Decline
+                    </Button>
+                  </>
+                )}
+
+                {/* ProjectCard action pattern */}
+                {!showActions && onAction && (
                   <Button
                     onClick={onAction}
                     disabled={alreadySent}
@@ -342,6 +436,7 @@ export function ProjectDetailModal({
       <AnimatePresence>
         {showFullscreen && (
           <motion.div
+            key="lightbox"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -354,7 +449,6 @@ export function ProjectDetailModal({
             >
               <X className="w-5 h-5 text-white" />
             </button>
-
             <div className="relative max-w-5xl w-full" onClick={e => e.stopPropagation()}>
               <img
                 src={displayPhotos[currentImageIndex]}
