@@ -1,8 +1,8 @@
-// src/pages/PostProjectPage.tsx
+// src/pages/PostProjectPage.tsx - UPDATED FOR currentPhotos
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, ArrowRight, ArrowLeft, Check, Loader2, MapPin, Calendar, Lightbulb, Camera, X } from 'lucide-react';
+import { useNavigate, useLocation} from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Upload, ArrowRight, ArrowLeft, Check, Loader2, MapPin, Calendar, Lightbulb, Camera } from 'lucide-react';
 import { useAuth, useUser } from '@clerk/clerk-react';
 
 import { Layout } from '@/components/Layout/Layout';
@@ -15,56 +15,64 @@ import { Slider } from '@/components/ui/slider';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/data/MockData';
+import { X } from 'lucide-react';
 import { api } from '@/services/api';
 
-const steps = [
-  { label: 'Details',     short: '1' },
-  { label: 'Before',      short: '2' },
-  { label: 'Vision',      short: '3' },
-  { label: 'Budget',      short: '4' },
-  { label: 'Contact',     short: '5' },
-];
-
-const STYLES   = ['Modern', 'African Fusion', 'Minimalist', 'Luxury', 'Bohemian', 'Coastal', 'Budget-Friendly'];
-const TIMELINES = ['1-2 weeks', '2-4 weeks', '1-2 months', '2-3 months', '3+ months', 'Flexible'];
+// ✅ 5 steps
+const steps = ['Project Details', 'Current Space', 'Your Vision', 'Budget & Style', 'Contact'];
+const styles = ['Modern', 'African Fusion', 'Minimalist', 'Luxury', 'Bohemian', 'Coastal', 'Budget-Friendly'];
+const timelines = ['1-2 weeks', '2-4 weeks', '1-2 months', '2-3 months', '3+ months', 'Flexible'];
 
 export default function PostProjectPage() {
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { userId, getToken, isLoaded } = useAuth();
   const { user: clerkUser, isLoaded: userLoaded } = useUser();
-
+  
   const prefilled = location.state as {
-    roomType?: string; budgetMin?: number; budgetMax?: number;
-    style?: string; designerId?: string;
+    roomType?: string;
+    budgetMin?: number;
+    budgetMax?: number;
+    style?: string;
+    designerId?: string;
   } | null;
+
   const suggestedDesignerId = prefilled?.designerId;
 
-  // ── Form state ──────────────────────────────────────────────────────────────
-  const [step, setStep]           = useState(0);
+  // Form state
+  const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors]       = useState<Record<string, string>>({});
-
-  const [title, setTitle]                   = useState(prefilled?.roomType ? `${prefilled.roomType} Design Project` : '');
-  const [description, setDescription]       = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Step 0: Project Details
+  const [title, setTitle] = useState(prefilled?.roomType ? `${prefilled.roomType} Design Project` : '');
+  const [description, setDescription] = useState('');
   const [projectLocation, setProjectLocation] = useState('');
-  const [timeline, setTimeline]             = useState('');
-
-  const [beforePhotos, setBeforePhotos]         = useState<string[]>([]);
-  const [uploadingBefore, setUploadingBefore]   = useState(false);
+  const [timeline, setTimeline] = useState('');
+  
+  // ✅ UPDATED: Step 1: Current Space Photos
+  const [currentPhotos, setCurrentPhotos] = useState<string[]>([]);
+  const [uploadingCurrent, setUploadingCurrent] = useState(false);
+  
+  // ✅ Step 2: Inspiration Photos (Your Vision)
   const [inspirationPhotos, setInspirationPhotos] = useState<string[]>([]);
   const [inspirationNotes, setInspirationNotes] = useState('');
   const [uploadingInspiration, setUploadingInspiration] = useState(false);
-
-  const [budget, setBudget]           = useState<number[]>(
-    prefilled ? [Math.round(((prefilled.budgetMin ?? 500000) + (prefilled.budgetMax ?? 500000)) / 2)] : [500000]
+  
+  // Step 3: Budget & Style
+  const [budget, setBudget] = useState<number[]>(
+    prefilled ? [Math.round((prefilled.budgetMin! + prefilled.budgetMax!) / 2)] : [500000]
   );
-  const [selectedStyles, setSelectedStyles] = useState<string[]>(prefilled?.style ? [prefilled.style] : []);
-
-  const [name, setName]   = useState('');
+  const [selectedStyles, setSelectedStyles] = useState<string[]>(
+    prefilled?.style ? [prefilled.style] : []
+  );
+  
+  // Step 4: Contact
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
 
+  // Auto-fill user data from Clerk
   useEffect(() => {
     if (userLoaded && clerkUser) {
       setName(clerkUser.fullName || `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim());
@@ -73,549 +81,636 @@ export default function PostProjectPage() {
     }
   }, [userLoaded, clerkUser]);
 
-  const toggleStyle = (s: string) =>
-    setSelectedStyles(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
-
-  // ── Validation ──────────────────────────────────────────────────────────────
-  const validateStep = (s: number) => {
-    const e: Record<string, string> = {};
-    if (s === 0) {
-      if (!title.trim())           e.title       = 'Project title is required';
-      if (!description.trim())     e.description = 'Description is required';
-      if (!projectLocation.trim()) e.location    = 'Location is required';
-      if (!timeline)               e.timeline    = 'Timeline is required';
-    }
-    if (s === 3 && selectedStyles.length === 0) e.styles = 'Select at least one style';
-    if (s === 4) {
-      if (!name.trim())                        e.name  = 'Name is required';
-      if (!email.trim())                       e.email = 'Email is required';
-      if (!/\S+@\S+\.\S+/.test(email))        e.email = 'Invalid email format';
-      if (!phone.trim())                       e.phone = 'Phone number is required';
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const toggleStyle = (style: string) => {
+    setSelectedStyles(prev =>
+      prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style]
+    );
   };
 
-  // ── Photo uploads ───────────────────────────────────────────────────────────
-  const handleBeforePhotos = async (files: File[]) => {
-    setUploadingBefore(true);
-    try {
-      const fd = new FormData();
-      files.forEach(f => fd.append('images', f));
-      const res = await api.uploadProjectImages(fd);
-      setBeforePhotos(prev => [...prev, ...res.urls]);
-    } catch { alert('Failed to upload before photos'); }
-    finally { setUploadingBefore(false); }
-  };
+  // ✅ UPDATED: Handle current space photo uploads
+  const handleCurrentPhotos = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    setUploadingCurrent(true);
+    const formData = new FormData();
+    files.forEach(file => formData.append('images', file));
 
-  const handleInspirationPhotos = async (files: File[]) => {
-    setUploadingInspiration(true);
-    try {
-      const fd = new FormData();
-      files.forEach(f => fd.append('images', f));
-      const res = await api.uploadProjectImages(fd);
-      setInspirationPhotos(prev => [...prev, ...res.urls]);
-    } catch { alert('Failed to upload inspiration photos'); }
-    finally { setUploadingInspiration(false); }
-  };
-
-  // ── Submit ──────────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    if (!validateStep(4)) return;
-    setSubmitting(true);
     try {
       const token = await getToken();
-      if (!token) { navigate('/sign-in'); return; }
+      const res = await fetch('http://localhost:5000/api/upload/project-images', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-      const res = await api.createProject({
-        title, description, location: projectLocation, budget: budget[0],
-        timeline, styles: selectedStyles,
-        photos: [...beforePhotos, ...inspirationPhotos],
-        beforePhotos, inspirationPhotos, inspirationNotes,
-        client: { clerkId: userId, name, email, phone },
-      }, token);
+      if (!res.ok) throw new Error('Upload failed');
 
-      if (res.success) {
-        if (suggestedDesignerId) {
-          try {
-            await fetch('http://localhost:5000/api/invites', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ projectId: res.project._id, designerId: suggestedDesignerId }),
-            });
-          } catch { /* non-fatal */ }
-        }
-        navigate('/success', { state: { message: suggestedDesignerId ? 'Project posted & designer invited!' : 'Project posted successfully!', projectTitle: title } });
-      }
-    } catch { alert('Failed to submit project. Please try again.'); }
-    finally { setSubmitting(false); }
+      const data = await res.json();
+      setCurrentPhotos(prev => [...prev, ...data.urls]);
+    } catch (error) {
+      console.error('Error uploading current photos:', error);
+      alert('Failed to upload photos. Please try again.');
+    } finally {
+      setUploadingCurrent(false);
+    }
   };
 
-  // ── Guards ──────────────────────────────────────────────────────────────────
-  if (!isLoaded || !userLoaded) return (
-    <Layout><div className="flex justify-center items-center min-h-screen">
-      <Loader2 className="w-10 h-10 animate-spin text-primary" />
-    </div></Layout>
-  );
-  if (!userId) return (
-    <Layout>
-      <div className="container mx-auto py-32 text-center px-4">
-        <h1 className="font-display text-3xl font-bold mb-4">Please Sign In</h1>
-        <Button size="lg" onClick={() => navigate('/sign-in')}>Sign In</Button>
-      </div>
-    </Layout>
-  );
+  // Handle inspiration photo uploads
+  const handleInspirationPhotos = async (files: File[]) => {
+    if (files.length === 0) return;
+    
+    setUploadingInspiration(true);
+    const formData = new FormData();
+    files.forEach(file => formData.append('images', file));
 
-  const progress = ((step + 1) / steps.length) * 100;
+    try {
+      const token = await getToken();
+      const res = await fetch('http://localhost:5000/api/upload/project-images', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+      if (!res.ok) throw new Error('Upload failed');
+
+      const data = await res.json();
+      setInspirationPhotos(prev => [...prev, ...data.urls]);
+    } catch (error) {
+      console.error('Error uploading inspiration photos:', error);
+      alert('Failed to upload photos. Please try again.');
+    } finally {
+      setUploadingInspiration(false);
+    }
+  };
+
+  // Validation
+  const validateStep = (currentStep: number): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (currentStep === 0) {
+      if (!title.trim()) newErrors.title = 'Project title is required';
+      if (!description.trim()) newErrors.description = 'Description is required';
+      if (!projectLocation.trim()) newErrors.location = 'Location is required';
+      if (!timeline) newErrors.timeline = 'Timeline is required';
+    }
+
+    if (currentStep === 1) {
+      if (currentPhotos.length === 0) newErrors.currentPhotos = 'At least one photo of your current space is required';
+    }
+
+    if (currentStep === 2) {
+      if (inspirationPhotos.length === 0) newErrors.inspirationPhotos = 'At least one inspiration photo is required';
+    }
+
+    if (currentStep === 3) {
+      if (selectedStyles.length === 0) newErrors.styles = 'Select at least one style';
+      if (budget[0] < 50000) newErrors.budget = 'Budget must be at least KSh 50,000';
+    }
+
+    if (currentStep === 4) {
+      if (!name.trim()) newErrors.name = 'Name is required';
+      if (!email.trim()) newErrors.email = 'Email is required';
+      if (!phone.trim()) newErrors.phone = 'Phone number is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const nextStep = () => {
+    if (validateStep(step)) {
+      setStep(prev => Math.min(prev + 1, steps.length - 1));
+    }
+  };
+
+  const prevStep = () => {
+    setStep(prev => Math.max(prev - 1, 0));
+    setErrors({});
+  };
+
+  // ✅ UPDATED: Submit with currentPhotos
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateStep(step)) return;
+
+    try {
+      setSubmitting(true);
+      const token = await getToken();
+
+      const projectData = {
+        title,
+        description,
+        location: projectLocation,
+        budget: budget[0],
+        timeline,
+        styles: selectedStyles,
+        currentPhotos,  // ✅ Changed from beforePhotos
+        inspirationPhotos,
+        inspirationNotes,
+        client: {
+          clerkId: userId,
+          name,
+          email,
+          phone,
+        },
+        suggestedDesignerId,
+      };
+
+      const response = await api.createProject(projectData, token!);
+
+      if (response.success) {
+        navigate('/client/dashboard', {
+          state: { successMessage: 'Project posted successfully!' }
+        });
+      }
+    } catch (error: any) {
+      console.error('Error submitting project:', error);
+      alert(error.response?.data?.error || 'Failed to post project. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Loading states
+  if (!isLoaded || !userLoaded) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!userId) {
+    navigate('/sign-in');
+    return null;
+  }
+
   return (
-    <Layout hideFooter>
-      <div className="min-h-screen bg-gradient-to-b from-background via-muted/20 to-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl py-6 lg:py-12">
+    <Layout>
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-8"
+        >
+          {/* Header */}
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Post Your Project</h1>
+            <p className="text-muted-foreground">
+              Tell us about your space and what you envision
+            </p>
+          </div>
 
-          {/* ── Stepper ── */}
-          <div className="mb-6 lg:mb-8">
-            {/* Mobile: progress bar + current step label */}
-            <div className="sm:hidden mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-foreground">
-                  {steps[step].label}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {step + 1} / {steps.length}
-                </span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
-                  initial={{ width: '0%' }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.4, ease: 'easeInOut' }}
-                />
-              </div>
-              {/* Dot row on mobile */}
-              <div className="flex items-center justify-center gap-2 mt-3">
-                {steps.map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      'rounded-full transition-all duration-300',
-                      i === step   ? 'w-6 h-2 bg-primary' :
-                      i < step     ? 'w-2 h-2 bg-primary/50' :
-                                     'w-2 h-2 bg-muted-foreground/20'
-                    )}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Desktop: full labelled stepper */}
-            <div className="hidden sm:block">
-              <div className="flex items-center justify-between mb-3">
-                {steps.map((s, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1.5 flex-1">
-                    <div className={cn(
-                      'w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all border-2',
-                      i < step  ? 'bg-primary border-primary text-primary-foreground' :
-                      i === step ? 'bg-primary border-primary text-primary-foreground ring-4 ring-primary/20' :
-                                   'bg-background border-border text-muted-foreground'
-                    )}>
-                      {i < step ? <Check className="w-4 h-4" /> : i + 1}
-                    </div>
-                    <span className={cn(
-                      'text-xs font-medium text-center leading-tight',
-                      i <= step ? 'text-foreground' : 'text-muted-foreground'
-                    )}>
-                      {s.label}
-                    </span>
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              {steps.map((label, i) => (
+                <div key={i} className="flex items-center flex-1">
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                    i === step ? "bg-primary text-primary-foreground" :
+                    i < step ? "bg-primary/20 text-primary" :
+                    "bg-muted text-muted-foreground"
+                  )}>
+                    {i < step ? <Check className="w-4 h-4" /> : i + 1}
                   </div>
-                ))}
-              </div>
-              {/* Connector line */}
-              <div className="relative h-1.5 bg-muted rounded-full overflow-hidden mx-4">
-                <motion.div
-                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary to-secondary rounded-full"
-                  initial={{ width: '0%' }}
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.4, ease: 'easeInOut' }}
-                />
-              </div>
+                  {i < steps.length - 1 && (
+                    <div className={cn(
+                      "h-0.5 flex-1 mx-2 transition-colors",
+                      i < step ? "bg-primary" : "bg-muted"
+                    )} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              {steps.map((label, i) => (
+                <span key={i} className="flex-1 text-center">{label}</span>
+              ))}
             </div>
           </div>
 
-          {/* ── Invite notice ── */}
-          {suggestedDesignerId && (
-            <div className="mb-4 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
-              <span>📩</span>
-              <span><strong>Direct Invite:</strong> This designer will be notified when you submit.</span>
-            </div>
-          )}
-
-          {/* ── Step card ── */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-              className="bg-card rounded-2xl border border-border/60 shadow-lg p-5 sm:p-7 lg:p-10"
-            >
-
-              {/* ── Step 0: Project Details ── */}
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <Card className="p-8">
+              {/* Step 0: Project Details */}
               {step === 0 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2">Tell us about your project</h2>
-                    <p className="text-muted-foreground">Give designers a clear idea of what you're looking for</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Project Title *</Label>
-                    <Input
-                      placeholder="e.g., Modern Living Room Makeover in Westlands"
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                      className={cn('h-11', errors.title && 'border-destructive')}
-                    />
-                    {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Description *</Label>
-                    <Textarea
-                      placeholder="Describe your vision, what you like/dislike about your current space..."
-                      rows={5}
-                      value={description}
-                      onChange={e => setDescription(e.target.value)}
-                      className={cn('resize-none', errors.description && 'border-destructive')}
-                    />
-                    {errors.description && <p className="text-sm text-destructive">{errors.description}</p>}
-                  </div>
-
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="font-semibold flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4" /> Location *
-                      </Label>
-                      <Input
-                        placeholder="e.g., Westlands, Nairobi"
-                        value={projectLocation}
-                        onChange={e => setProjectLocation(e.target.value)}
-                        className={cn('h-11', errors.location && 'border-destructive')}
-                      />
-                      {errors.location && <p className="text-sm text-destructive">{errors.location}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="font-semibold flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4" /> Timeline *
-                      </Label>
-                      <select
-                        value={timeline}
-                        onChange={e => setTimeline(e.target.value)}
-                        className={cn(
-                          'w-full h-11 px-3 rounded-lg border bg-background text-sm',
-                          errors.timeline ? 'border-destructive' : 'border-input'
-                        )}
-                      >
-                        <option value="">Select timeline</option>
-                        {TIMELINES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                      {errors.timeline && <p className="text-sm text-destructive">{errors.timeline}</p>}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Step 1: Before Photos ── */}
-              {step === 1 && (
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Camera className="w-6 h-6 text-primary" />
+                <motion.div
+                  key="step-0"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <Lightbulb className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <h2 className="font-display text-2xl sm:text-3xl font-bold mb-1">Show us your current space</h2>
-                      <p className="text-muted-foreground text-sm sm:text-base">
-                        Upload photos of your space as it is now. Helps designers understand the transformation needed.
-                      </p>
+                      <h2 className="text-2xl font-semibold">Project Details</h2>
+                      <p className="text-sm text-muted-foreground">Basic information about your project</p>
                     </div>
-                  </div>
-
-                  {/* Upload zone */}
-                  <div className="relative">
-                    <input
-                      type="file" multiple accept="image/*" id="before-upload"
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                      disabled={uploadingBefore}
-                      onChange={e => handleBeforePhotos(Array.from(e.target.files || []))}
-                    />
-                    <div className="border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/3 transition-all rounded-2xl p-8 sm:p-12 text-center">
-                      {uploadingBefore ? (
-                        <><Loader2 className="w-10 h-10 mx-auto animate-spin text-primary mb-3" /><p className="font-medium">Uploading…</p></>
-                      ) : (
-                        <>
-                          <Upload className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-                          <p className="font-semibold mb-1">Click or drag to upload</p>
-                          <p className="text-sm text-muted-foreground mb-4">PNG, JPG up to 10MB • Multiple angles recommended</p>
-                          <Button size="sm" variant="outline" type="button" className="pointer-events-none">Choose Photos</Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Preview grid */}
-                  {beforePhotos.length > 0 && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">{beforePhotos.length} photo{beforePhotos.length > 1 ? 's' : ''} uploaded</p>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                        {beforePhotos.map((url, i) => (
-                          <div key={i} className="relative group aspect-square rounded-xl overflow-hidden">
-                            <img src={url} alt={`Before ${i + 1}`} className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => setBeforePhotos(p => p.filter((_, j) => j !== i))}
-                              className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-primary/5 border border-primary/15 text-sm">
-                    <span className="text-base flex-shrink-0">💡</span>
-                    <p className="text-muted-foreground"><strong className="text-foreground">Tip:</strong> Include wide shots + close-ups of problem areas to help designers give accurate proposals.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Step 2: Inspiration / Vision ── */}
-              {step === 2 && (
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
-                      <Lightbulb className="w-6 h-6 text-secondary" />
-                    </div>
-                    <div>
-                      <h2 className="font-display text-2xl sm:text-3xl font-bold mb-1">Share your vision</h2>
-                      <p className="text-muted-foreground text-sm sm:text-base">
-                        Inspiration photos or reference images of what you want to achieve — optional but very helpful!
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">What inspires you? <span className="font-normal text-muted-foreground">(optional)</span></Label>
-                    <Textarea
-                      placeholder="Describe your dream space… mood, colors, specific elements. Any Pinterest boards or Instagram accounts you love?"
-                      rows={4}
-                      value={inspirationNotes}
-                      onChange={e => setInspirationNotes(e.target.value)}
-                      className="resize-none"
-                    />
-                  </div>
-
-                  {/* Upload zone */}
-                  <div className="relative">
-                    <input
-                      type="file" multiple accept="image/*" id="inspiration-upload"
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                      disabled={uploadingInspiration}
-                      onChange={e => handleInspirationPhotos(Array.from(e.target.files || []))}
-                    />
-                    <div className="border-2 border-dashed border-secondary/30 hover:border-secondary/60 hover:bg-secondary/3 transition-all rounded-2xl p-8 sm:p-12 text-center">
-                      {uploadingInspiration ? (
-                        <><Loader2 className="w-10 h-10 mx-auto animate-spin text-secondary mb-3" /><p className="font-medium">Uploading…</p></>
-                      ) : (
-                        <>
-                          <Lightbulb className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-                          <p className="font-semibold mb-1">Add inspiration photos</p>
-                          <p className="text-sm text-muted-foreground mb-4">Screenshots from Pinterest, magazines, Instagram, etc.</p>
-                          <Button size="sm" variant="outline" type="button" className="pointer-events-none">Choose Photos</Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Preview grid */}
-                  {inspirationPhotos.length > 0 && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">{inspirationPhotos.length} inspiration{inspirationPhotos.length > 1 ? 's' : ''} added</p>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                        {inspirationPhotos.map((url, i) => (
-                          <div key={i} className="relative group aspect-square rounded-xl overflow-hidden">
-                            <img src={url} alt={`Inspiration ${i + 1}`} className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => setInspirationPhotos(p => p.filter((_, j) => j !== i))}
-                              className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-secondary/5 border border-secondary/15 text-sm">
-                    <span className="text-base flex-shrink-0">✨</span>
-                    <p className="text-muted-foreground"><strong className="text-foreground">Pro Tip:</strong> This step is optional, but sharing inspiration photos helps designers match your aesthetic perfectly.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Step 3: Budget & Style ── */}
-              {step === 3 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2">Budget & Style</h2>
-                    <p className="text-muted-foreground">Helps match you with the right designers</p>
-                  </div>
-
-                  {/* Budget slider */}
-                  <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="font-semibold">Your Budget</Label>
-                      <span className="font-display text-2xl font-bold text-primary">{formatCurrency(budget[0])}</span>
-                    </div>
-                    <Slider value={budget} onValueChange={setBudget} min={50000} max={5000000} step={50000} className="py-2" />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>KSh 50,000</span>
-                      <span>KSh 5,000,000+</span>
-                    </div>
-                  </div>
-
-                  {/* Style selection */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="font-semibold">Preferred Styles *</Label>
-                      <span className="text-xs text-muted-foreground">Select all that apply</span>
-                    </div>
-                    {errors.styles && <p className="text-sm text-destructive">{errors.styles}</p>}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {STYLES.map(s => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => toggleStyle(s)}
-                          className={cn(
-                            'flex items-center gap-2.5 p-3 rounded-xl border-2 text-left transition-all text-sm font-medium',
-                            selectedStyles.includes(s)
-                              ? 'border-primary bg-primary/8 text-primary'
-                              : 'border-border hover:border-primary/40 bg-card text-foreground'
-                          )}
-                        >
-                          <div className={cn(
-                            'w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border-2 transition-colors',
-                            selectedStyles.includes(s) ? 'bg-primary border-primary' : 'border-muted-foreground/30'
-                          )}>
-                            {selectedStyles.includes(s) && <Check className="w-2.5 h-2.5 text-white" />}
-                          </div>
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Step 4: Contact ── */}
-              {step === 4 && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2">Almost there!</h2>
-                    <p className="text-muted-foreground">Designers will use this to send personalized proposals</p>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="font-semibold">Full Name</Label>
-                      <Input value={name} disabled className="bg-muted h-11" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-semibold">Email</Label>
-                      <Input value={email} disabled className="bg-muted h-11" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="font-semibold">Phone Number *</Label>
+                    <div>
+                      <Label htmlFor="title">Project Title *</Label>
                       <Input
-                        type="tel"
-                        placeholder="+254 712 345 678"
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                        className={cn('h-11', errors.phone && 'border-destructive')}
+                        id="title"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        placeholder="e.g., Modern Living Room Redesign"
+                        className={errors.title ? 'border-destructive' : ''}
                       />
-                      {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+                      {errors.title && <p className="text-sm text-destructive mt-1">{errors.title}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="description">Description *</Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        placeholder="Describe your project, what you want to achieve, any specific requirements..."
+                        rows={6}
+                        className={errors.description ? 'border-destructive' : ''}
+                      />
+                      {errors.description && <p className="text-sm text-destructive mt-1">{errors.description}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="location" className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4" />
+                          Location *
+                        </Label>
+                        <Input
+                          id="location"
+                          value={projectLocation}
+                          onChange={e => setProjectLocation(e.target.value)}
+                          placeholder="e.g., Nairobi, Westlands"
+                          className={errors.location ? 'border-destructive' : ''}
+                        />
+                        {errors.location && <p className="text-sm text-destructive mt-1">{errors.location}</p>}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="timeline" className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          Timeline *
+                        </Label>
+                        <select
+                          id="timeline"
+                          value={timeline}
+                          onChange={e => setTimeline(e.target.value)}
+                          className={cn(
+                            "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2",
+                            errors.timeline && 'border-destructive'
+                          )}
+                        >
+                          <option value="">Select timeline</option>
+                          {timelines.map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                        {errors.timeline && <p className="text-sm text-destructive mt-1">{errors.timeline}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ✅ UPDATED: Step 1: Current Space Photos */}
+              {step === 1 && (
+                <motion.div
+                  key="step-1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-blue-500/10 rounded-lg">
+                      <Camera className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-semibold">Current Space Photos</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Upload photos of how your space looks right now
+                      </p>
                     </div>
                   </div>
 
-                  {/* Summary card */}
-                  <div className="rounded-2xl border border-border/60 bg-muted/30 p-5">
-                    <p className="font-semibold mb-4">📋 Project Summary</p>
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                      {[
-                        { label: 'Title',    value: title },
-                        { label: 'Location', value: projectLocation },
-                        { label: 'Budget',   value: formatCurrency(budget[0]) },
-                        { label: 'Timeline', value: timeline },
-                        { label: 'Styles',   value: selectedStyles.join(', ') || '—' },
-                        { label: 'Photos',   value: `${beforePhotos.length} before · ${inspirationPhotos.length} inspiration` },
-                      ].map(({ label, value }) => (
-                        <div key={label}>
-                          <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-                          <p className="font-medium leading-snug">{value}</p>
+                  <div className={cn(
+                    "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                    errors.currentPhotos ? 'border-destructive' : 'border-border hover:border-primary'
+                  )}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={e => handleCurrentPhotos(Array.from(e.target.files || []))}
+                      className="hidden"
+                      id="current-upload"
+                      disabled={uploadingCurrent}
+                    />
+                    <label htmlFor="current-upload" className="cursor-pointer">
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-lg font-medium mb-1">
+                        {uploadingCurrent ? 'Uploading...' : 'Upload Current Space Photos'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Click to select or drag and drop (multiple files allowed)
+                      </p>
+                    </label>
+                  </div>
+
+                  {errors.currentPhotos && (
+                    <p className="text-sm text-destructive">{errors.currentPhotos}</p>
+                  )}
+
+                  {currentPhotos.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-3">
+                        {currentPhotos.length} photo{currentPhotos.length !== 1 ? 's' : ''} uploaded
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {currentPhotos.map((url, i) => (
+                          <div key={i} className="relative group aspect-video">
+                            <img
+                              src={url}
+                              alt={`Current space ${i + 1}`}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setCurrentPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                              className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {/* Step 2: Inspiration Photos */}
+              {step === 2 && (
+                <motion.div
+                  key="step-2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-purple-500/10 rounded-lg">
+                      <Lightbulb className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-semibold">Your Vision</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Show us how you want your space to look
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className={cn(
+                    "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                    errors.inspirationPhotos ? 'border-destructive' : 'border-border hover:border-primary'
+                  )}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={e => handleInspirationPhotos(Array.from(e.target.files || []))}
+                      className="hidden"
+                      id="inspiration-upload"
+                      disabled={uploadingInspiration}
+                    />
+                    <label htmlFor="inspiration-upload" className="cursor-pointer">
+                      <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-lg font-medium mb-1">
+                        {uploadingInspiration ? 'Uploading...' : 'Upload Inspiration Photos'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Photos of designs you like, Pinterest boards, magazine clippings
+                      </p>
+                    </label>
+                  </div>
+
+                  {errors.inspirationPhotos && (
+                    <p className="text-sm text-destructive">{errors.inspirationPhotos}</p>
+                  )}
+
+                  {inspirationPhotos.length > 0 && (
+                    <div>
+                      <p className="text-sm font-medium mb-3">
+                        {inspirationPhotos.length} inspiration photo{inspirationPhotos.length !== 1 ? 's' : ''} uploaded
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {inspirationPhotos.map((url, i) => (
+                          <div key={i} className="relative group aspect-video">
+                            <img
+                              src={url}
+                              alt={`Inspiration ${i + 1}`}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setInspirationPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                              className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <Label htmlFor="notes">Tell us what you like about these designs (optional)</Label>
+                    <Textarea
+                      id="notes"
+                      value={inspirationNotes}
+                      onChange={e => setInspirationNotes(e.target.value)}
+                      placeholder="e.g., 'I love the minimalist aesthetic and neutral color palette...'"
+                      rows={4}
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Step 3: Budget & Style */}
+              {step === 3 && (
+                <motion.div
+                  key="step-3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <h2 className="text-2xl font-semibold mb-6">Budget & Style Preferences</h2>
+
+                  <div>
+                    <Label>Budget: {formatCurrency(budget[0])}</Label>
+                    <Slider
+                      value={budget}
+                      onValueChange={setBudget}
+                      min={50000}
+                      max={5000000}
+                      step={50000}
+                      className="my-4"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>KSh 50,000</span>
+                      <span>KSh 5,000,000</span>
+                    </div>
+                    {errors.budget && <p className="text-sm text-destructive mt-1">{errors.budget}</p>}
+                  </div>
+
+                  <div>
+                    <Label>Design Styles (select at least one) *</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+                      {styles.map(style => (
+                        <div
+                          key={style}
+                          onClick={() => toggleStyle(style)}
+                          className={cn(
+                            "p-4 border rounded-lg cursor-pointer transition-all",
+                            selectedStyles.includes(style)
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <Checkbox
+                            checked={selectedStyles.includes(style)}
+                            className="mr-2"
+                          />
+                          <span className="text-sm font-medium">{style}</span>
                         </div>
                       ))}
                     </div>
+                    {errors.styles && <p className="text-sm text-destructive mt-1">{errors.styles}</p>}
                   </div>
-                </div>
+                </motion.div>
               )}
 
-              {/* ── Navigation ── */}
-              <div className="flex items-center justify-between mt-8 pt-6 border-t border-border/60 gap-3">
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={() => setStep(s => Math.max(0, s - 1))}
-                  disabled={step === 0 || submitting}
-                  className="gap-1.5 min-w-[90px] sm:min-w-[110px]"
+              {/* Step 4: Contact */}
+              {step === 4 && (
+                <motion.div
+                  key="step-4"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <h2 className="text-2xl font-semibold mb-6">Contact Information</h2>
+
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="name">Full Name *</Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        className={errors.name ? 'border-destructive' : ''}
+                      />
+                      {errors.name && <p className="text-sm text-destructive mt-1">{errors.name}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className={errors.email ? 'border-destructive' : ''}
+                      />
+                      {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        placeholder="+254 712 345 678"
+                        className={errors.phone ? 'border-destructive' : ''}
+                      />
+                      {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone}</p>}
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 p-4 rounded-lg">
+                    <h3 className="font-semibold mb-2">Review Your Project</h3>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      <li>• {title || 'Untitled Project'}</li>
+                      <li>• {projectLocation || 'No location'}</li>
+                      <li>• Budget: {formatCurrency(budget[0])}</li>
+                      <li>• {currentPhotos.length} current space photo{currentPhotos.length !== 1 ? 's' : ''}</li>
+                      <li>• {inspirationPhotos.length} inspiration photo{inspirationPhotos.length !== 1 ? 's' : ''}</li>
+                      <li>• {selectedStyles.length} style{selectedStyles.length !== 1 ? 's' : ''} selected</li>
+                    </ul>
+                  </div>
+                </motion.div>
+              )}
+            </Card>
+
+            {/* Navigation */}
+            <div className="flex gap-4">
+              {step > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={prevStep}
+                  className="flex-1"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
                   Back
                 </Button>
+              )}
 
-                {step < steps.length - 1 ? (
-                  <Button
-                    size="default"
-                    onClick={() => { if (validateStep(step)) setStep(s => s + 1); }}
-                    className="gap-1.5 min-w-[90px] sm:min-w-[110px]"
-                  >
-                    Next
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    size="default"
-                    onClick={handleSubmit}
-                    disabled={submitting}
-                    className="gap-1.5 min-w-[140px] sm:min-w-[160px]"
-                  >
-                    {submitting
-                      ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting…</>
-                      : <><Check className="w-4 h-4" />Submit Project</>
-                    }
-                  </Button>
-                )}
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+              {step < steps.length - 1 ? (
+                <Button
+                  type="button"
+                  onClick={nextStep}
+                  className="flex-1"
+                >
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Posting...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Post Project
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </form>
+        </motion.div>
       </div>
     </Layout>
   );
