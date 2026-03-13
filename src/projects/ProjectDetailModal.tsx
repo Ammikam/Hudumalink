@@ -149,7 +149,7 @@ export function ProjectDetailModal({
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
           className="pointer-events-auto w-full lg:max-w-5xl xl:max-w-6xl bg-background rounded-t-3xl lg:rounded-2xl shadow-2xl overflow-hidden"
-          style={{ maxHeight: '92vh' }}
+          style={{ maxHeight: 'calc(92vh - env(safe-area-inset-bottom))' }}
           onClick={e => e.stopPropagation()}
         >
           {/* Mobile drag handle */}
@@ -388,7 +388,7 @@ export function ProjectDetailModal({
               </div>
 
               {/* ── Sticky CTA footer ── */}
-              <div className="flex-shrink-0 px-5 sm:px-6 lg:px-7 py-4 border-t bg-background flex gap-3">
+              <div className="flex-shrink-0 px-5 sm:px-6 lg:px-7 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:pb-4 border-t bg-background flex gap-3">
                 <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none sm:min-w-[100px]">
                   Close
                 </Button>
