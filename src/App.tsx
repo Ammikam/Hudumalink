@@ -28,6 +28,8 @@ import BecomeDesignerPage from "./pages/BecomeDesignerPage";
 import ApplicationPendingPage from '@/pages/ApplicationPendingPage';
 import AddInspirationPage from '@/pages/designerpages/AddInpirationPage';
 import ClientProfilePage from "./pages/Clientprofilepage";
+import PaymentPage from './pages/PaymentPage';
+
 
 
 const queryClient = new QueryClient();
@@ -53,6 +55,7 @@ const App = () => (
               <Route path="/become-designer" element={<BecomeDesignerPage />} />
               <Route path="/designer/application-pending" element={<ApplicationPendingPage />} />
               <Route path="/profile" element={<ClientProfilePage />} />
+              <Route path="/payment/:projectId" element={<PaymentPage />} />
 
               {/* Client Dashboard */}
               <Route path="/dashboard/client" element={<ClientDashboard />} />
