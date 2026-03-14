@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, ArrowLeft, Star, CheckCircle2, Clock,
   DollarSign, MessageSquare, Image as ImageIcon,
-  AlertCircle, Trophy, Sparkles, X,
+  AlertCircle, Trophy, Sparkles, X, Shield,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -23,16 +23,18 @@ interface Designer { _id: string; name: string; avatar?: string; }
 interface Project {
   _id: string; title: string; description: string;
   budget: number; timeline: string; photos: string[];
-  status: 'open' | 'in_progress' | 'completed';
+  status: 'open' | 'payment_pending' | 'in_progress' | 'completed';
   designer?: Designer | null;
   client: { clerkId: string; name: string; email?: string; phone?: string; avatar?: string; };
 }
 interface Review { _id: string; rating: number; review: string; createdAt: string; }
+interface Payment { _id: string; status: string; designerAmount: number; amount: number; }
 
 const STATUS_CONFIG = {
-  open:        { label: 'Open',        dot: 'bg-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', Icon: Clock },
-  in_progress: { label: 'In Progress', dot: 'bg-blue-400',    badge: 'bg-blue-50 text-blue-700 border-blue-200',           Icon: Clock },
-  completed:   { label: 'Completed',   dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground border-border', Icon: CheckCircle2 },
+  open:            { label: 'Open',             dot: 'bg-emerald-400',        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',   Icon: Clock        },
+  payment_pending: { label: 'Awaiting Payment',  dot: 'bg-amber-400',          badge: 'bg-amber-50 text-amber-700 border-amber-200',         Icon: Clock        },
+  in_progress:     { label: 'In Progress',       dot: 'bg-blue-400',            badge: 'bg-blue-50 text-blue-700 border-blue-200',             Icon: Clock        },
+  completed:       { label: 'Completed',          dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground border-border',         Icon: CheckCircle2 },
 };
 
 function StatusPill({ status }: { status: string }) {
@@ -50,19 +52,21 @@ const RATING_LABELS: Record<number, string> = { 1: 'Poor', 2: 'Fair', 3: 'Good',
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { userId, getToken, isLoaded } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [project, setProject]                   = useState<Project | null>(null);
-  const [existingReview, setExistingReview]     = useState<Review | null>(null);
-  const [loading, setLoading]                   = useState(true);
-  const [showReview, setShowReview]             = useState(false);
-  const [rating, setRating]                     = useState(0);
-  const [hoverRating, setHoverRating]           = useState(0);
-  const [reviewText, setReviewText]             = useState('');
-  const [submittingReview, setSubmittingReview] = useState(false);
+  const [project, setProject]                     = useState<Project | null>(null);
+  const [payment, setPayment]                     = useState<Payment | null>(null);
+  const [existingReview, setExistingReview]       = useState<Review | null>(null);
+  const [loading, setLoading]                     = useState(true);
+  const [showReview, setShowReview]               = useState(false);
+  const [rating, setRating]                       = useState(0);
+  const [hoverRating, setHoverRating]             = useState(0);
+  const [reviewText, setReviewText]               = useState('');
+  const [submittingReview, setSubmittingReview]   = useState(false);
   const [completingProject, setCompletingProject] = useState(false);
-  const [activeTab, setActiveTab]               = useState('details');
-  const [lightboxPhoto, setLightboxPhoto]       = useState<string | null>(null);
+  const [activeTab, setActiveTab]                 = useState('details');
+  const [lightboxPhoto, setLightboxPhoto]         = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !userId) return;
@@ -70,12 +74,23 @@ export default function ProjectDetailPage() {
       try {
         const token = await getToken();
         if (!token) throw new Error('No token');
-        const projectRes = await fetch(`http://localhost:5000/api/projects/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+
+        // Fetch project and payment in parallel
+        const [projectRes, paymentRes] = await Promise.all([
+          fetch(`http://localhost:5000/api/projects/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`http://localhost:5000/api/payments/project/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
         const projectData = await projectRes.json();
+        const paymentData = await paymentRes.json();
+
         if (projectData.success) {
           setProject(projectData.project);
+
           if (projectData.project.status === 'completed') {
             const reviewRes = await fetch(`http://localhost:5000/api/reviews/project/${id}`, {
               headers: { Authorization: `Bearer ${token}` },
@@ -88,6 +103,11 @@ export default function ProjectDetailPage() {
             }
           }
         }
+
+        if (paymentData.success && paymentData.payment) {
+          setPayment(paymentData.payment);
+        }
+
       } catch {
         toast({ title: 'Error', description: 'Failed to load project details', variant: 'destructive' });
       } finally {
@@ -97,24 +117,61 @@ export default function ProjectDetailPage() {
     fetchData();
   }, [id, userId, isLoaded, getToken]);
 
+  // ✅ STEP 6: Mark complete AND release payment in one action
   const handleMarkComplete = async () => {
-    if (!window.confirm('Mark this project as complete? This action cannot be undone.')) return;
+    if (!window.confirm(
+      'Mark this project as complete?\n\nThis will release payment to the designer and cannot be undone.'
+    )) return;
+
     setCompletingProject(true);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:5000/api/projects/${id}/complete`, {
+
+      // Step A: Mark project as complete
+      const completeRes = await fetch(`http://localhost:5000/api/projects/${id}/complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (res.ok) {
-        toast({ title: 'Success!', description: 'Project marked as complete. Please leave a review.' });
-        setProject(prev => prev ? { ...prev, status: 'completed' } : null);
-        setShowReview(true);
-        setActiveTab('review');
-      } else {
-        toast({ title: 'Error', description: data.error || 'Failed to complete project', variant: 'destructive' });
+      const completeData = await completeRes.json();
+
+      if (!completeRes.ok) {
+        toast({ title: 'Error', description: completeData.error || 'Failed to complete project', variant: 'destructive' });
+        return;
       }
+
+      // Step B: Release payment to designer if one exists in escrow
+      if (payment?._id && payment.status === 'held') {
+        const releaseRes = await fetch(`http://localhost:5000/api/payments/release/${payment._id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        const releaseData = await releaseRes.json();
+
+        if (releaseRes.ok) {
+          toast({
+            title: '✅ Project Complete!',
+            description: `KSh ${payment.designerAmount.toLocaleString()} has been sent to ${project?.designer?.name}. Please leave a review.`,
+          });
+        } else {
+          // Project is marked complete but payment release failed — flag it
+          toast({
+            title: '⚠️ Project Complete — Payment Pending',
+            description: 'Project marked complete but payment release failed. Please contact support.',
+            variant: 'destructive',
+          });
+        }
+      } else {
+        // No escrow payment found — just complete the project
+        toast({
+          title: '✅ Project Complete!',
+          description: 'Project marked as complete. Please leave a review.',
+        });
+      }
+
+      setProject(prev => prev ? { ...prev, status: 'completed' } : null);
+      setShowReview(true);
+      setActiveTab('review');
+
     } catch {
       toast({ title: 'Error', description: 'Failed to complete project.', variant: 'destructive' });
     } finally {
@@ -133,7 +190,12 @@ export default function ProjectDetailPage() {
       const res = await fetch(`http://localhost:5000/api/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ projectId: id, designerId: project?.designer?._id, rating, review: reviewText.trim() }),
+        body: JSON.stringify({
+          projectId: id,
+          designerId: project?.designer?._id,
+          rating,
+          review: reviewText.trim(),
+        }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -174,6 +236,8 @@ export default function ProjectDetailPage() {
     </Layout>
   );
 
+  const isClient = project.client.clerkId === userId;
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <Layout>
@@ -207,6 +271,47 @@ export default function ProjectDetailPage() {
                 </div>
                 <p className="text-sm text-emerald-800 font-medium">
                   Project complete — you've already reviewed this designer.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ✅ Payment pending banner — shown when project needs payment */}
+          {project.status === 'payment_pending' && isClient && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+              <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">Payment required to start</p>
+                    <p className="text-xs text-amber-700">
+                      {project.designer?.name} is ready — secure your payment to unlock the project.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white"
+                  onClick={() => navigate(`/payment/${project._id}`)}
+                >
+                  Pay Now
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ✅ Escrow info banner — shown when payment is held */}
+          {project.status === 'in_progress' && payment?.status === 'held' && isClient && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-200">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                </div>
+                <p className="text-sm text-blue-800">
+                  <strong>KSh {payment.designerAmount.toLocaleString()}</strong> is held in escrow.
+                  It will be released to {project.designer?.name} when you mark the project complete.
                 </p>
               </div>
             </motion.div>
@@ -249,7 +354,6 @@ export default function ProjectDetailPage() {
 
                 {/* ── Details tab ── */}
                 <TabsContent value="details" className="space-y-5">
-                  {/* Hired designer card */}
                   {project.designer && (
                     <div className="flex items-center gap-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
                       <Avatar className="w-12 h-12 ring-2 ring-emerald-200 flex-shrink-0">
@@ -262,10 +366,14 @@ export default function ProjectDetailPage() {
                         <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Hired Designer</p>
                         <p className="font-bold text-emerald-900 truncate">{project.designer.name}</p>
                         <p className="text-xs text-emerald-700">
-                          {project.status === 'completed' ? 'Project completed ✓' : 'Working on your project'}
+                          {project.status === 'completed'
+                            ? 'Project completed ✓'
+                            : project.status === 'payment_pending'
+                            ? 'Waiting for payment to start'
+                            : 'Working on your project'}
                         </p>
                       </div>
-                      {project.status === 'in_progress' && (
+                      {project.status === 'in_progress' && isClient && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -279,13 +387,11 @@ export default function ProjectDetailPage() {
                     </div>
                   )}
 
-                  {/* Description */}
                   <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
                     <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-2">Description</p>
                     <p className="text-sm lg:text-base leading-relaxed">{project.description}</p>
                   </div>
 
-                  {/* Photos */}
                   {project.photos.length > 0 ? (
                     <div>
                       <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
@@ -323,11 +429,10 @@ export default function ProjectDetailPage() {
                   </div>
                 </TabsContent>
 
-                {/* ── Review tab ── */}
+                {/* ── Review / Complete tab ── */}
                 <TabsContent value="review">
                   <div className="rounded-2xl border border-border/60 bg-background p-5 sm:p-6">
                     {existingReview ? (
-                      // Show submitted review
                       <div className="space-y-5">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center">
@@ -359,24 +464,32 @@ export default function ProjectDetailPage() {
                         </div>
                       </div>
                     ) : !showReview ? (
-                      // Complete project CTA
                       <div className="text-center py-6">
                         <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
                           <CheckCircle2 className="w-7 h-7 text-primary" />
                         </div>
                         <h3 className="font-display font-bold text-lg mb-2">Complete Project</h3>
-                        <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                          When the work is finished, mark it complete and leave a review for {project.designer?.name}.
+                        <p className="text-sm text-muted-foreground mb-2 max-w-sm mx-auto">
+                          When the work is finished, mark it complete to release payment to {project.designer?.name}.
                         </p>
-                        <Button size="lg" onClick={handleMarkComplete} disabled={completingProject} className="gap-2">
+                        {payment?.status === 'held' && (
+                          <p className="text-sm font-semibold text-primary mb-6">
+                            KSh {payment.designerAmount.toLocaleString()} will be sent to the designer.
+                          </p>
+                        )}
+                        <Button
+                          size="lg"
+                          onClick={handleMarkComplete}
+                          disabled={completingProject}
+                          className="gap-2"
+                        >
                           {completingProject
-                            ? <><Loader2 className="w-4 h-4 animate-spin" />Completing…</>
-                            : <><CheckCircle2 className="w-4 h-4" />Mark as Complete</>
+                            ? <><Loader2 className="w-4 h-4 animate-spin" />Processing…</>
+                            : <><CheckCircle2 className="w-4 h-4" />Mark as Complete & Release Payment</>
                           }
                         </Button>
                       </div>
                     ) : (
-                      // Review form
                       <div className="space-y-5">
                         <div>
                           <h3 className="font-display font-bold text-lg">Leave a Review</h3>
@@ -384,8 +497,6 @@ export default function ProjectDetailPage() {
                             How was your experience with {project.designer?.name}?
                           </p>
                         </div>
-
-                        {/* Stars */}
                         <div>
                           <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">
                             Rating *
@@ -412,8 +523,6 @@ export default function ProjectDetailPage() {
                             </p>
                           )}
                         </div>
-
-                        {/* Text */}
                         <div>
                           <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
                             Your Feedback (optional)
@@ -428,7 +537,6 @@ export default function ProjectDetailPage() {
                           />
                           <p className="text-xs text-muted-foreground mt-1 text-right">{reviewText.length}/1000</p>
                         </div>
-
                         <Button
                           size="lg"
                           onClick={handleSubmitReview}
@@ -450,7 +558,6 @@ export default function ProjectDetailPage() {
             {/* ── Sidebar ── */}
             <div className="hidden lg:block lg:col-span-1">
               <div className="sticky top-28 space-y-4">
-                {/* Quick stats */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-4 rounded-2xl bg-primary/8 border border-primary/15">
                     <p className="text-sm text-muted-foreground mb-1">Budget</p>
@@ -462,10 +569,24 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
 
-                {/* Project info */}
+                {/* ✅ Escrow card in sidebar */}
+                {payment?.status === 'held' && (
+                  <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="w-4 h-4 text-blue-600" />
+                      <p className="text-sm font-semibold text-blue-900">In Escrow</p>
+                    </div>
+                    <p className="text-xl font-bold text-blue-700 mb-1">
+                      KSh {payment.designerAmount.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      Released to designer on project completion
+                    </p>
+                  </div>
+                )}
+
                 <div className="rounded-2xl border border-border/60 bg-background p-5 space-y-4">
                   <h3 className="font-semibold text-base">Project Info</h3>
-
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Status</p>
@@ -477,7 +598,6 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
 
-                  {/* Designer */}
                   {project.designer && (
                     <div className="border-t pt-4">
                       <p className="text-sm text-muted-foreground mb-3">Designer</p>
