@@ -23,7 +23,6 @@ interface Designer { _id: string; name: string; avatar?: string; }
 interface Project {
   _id: string; title: string; description: string;
   budget: number; timeline: string;
-  // ✅ FIX: include all photo arrays
   photos: string[];
   currentPhotos?: string[];
   inspirationPhotos?: string[];
@@ -396,34 +395,98 @@ export default function ProjectDetailPage() {
                     <p className="text-sm lg:text-base leading-relaxed">{project.description}</p>
                   </div>
 
-                  {project.photos.length > 0 ? (
-                    <div>
-                      <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
-                        Photos ({project.photos.length})
-                      </p>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                        {project.photos.map((photo, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setLightboxPhoto(photo)}
-                            className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary"
-                          >
-                            <img
-                              src={photo}
-                              alt={`Project photo ${i + 1}`}
-                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-14 rounded-2xl bg-muted/40 border border-dashed border-border">
-                      <ImageIcon className="w-10 h-10 text-muted-foreground/40 mb-2" />
-                      <p className="text-sm text-muted-foreground">No photos uploaded yet</p>
-                    </div>
-                  )}
+                 {/* ✅ FIX: use currentPhotos + inspirationPhotos, fall back to photos */}
+{(() => {
+  const currentPhotos     = project.currentPhotos?.length     ? project.currentPhotos     : [];
+  const inspirationPhotos = project.inspirationPhotos?.length ? project.inspirationPhotos : [];
+  const legacyPhotos      = project.photos?.length            ? project.photos            : [];
+  const hasNewPhotos      = currentPhotos.length > 0 || inspirationPhotos.length > 0;
+  const allPhotos         = hasNewPhotos ? [...currentPhotos, ...inspirationPhotos] : legacyPhotos;
+
+  return allPhotos.length > 0 ? (
+    <div className="space-y-4">
+      {/* Current space photos */}
+      {currentPhotos.length > 0 && (
+        <div>
+          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
+            Current Space ({currentPhotos.length})
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {currentPhotos.map((photo, i) => (
+              <button
+                key={`current-${i}`}
+                onClick={() => setLightboxPhoto(photo)}
+                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <img
+                  src={photo}
+                  alt={`Current space ${i + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Inspiration photos */}
+      {inspirationPhotos.length > 0 && (
+        <div>
+          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
+            Inspiration ({inspirationPhotos.length})
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {inspirationPhotos.map((photo, i) => (
+              <button
+                key={`inspiration-${i}`}
+                onClick={() => setLightboxPhoto(photo)}
+                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <img
+                  src={photo}
+                  alt={`Inspiration ${i + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legacy photos fallback */}
+      {!hasNewPhotos && legacyPhotos.length > 0 && (
+        <div>
+          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
+            Photos ({legacyPhotos.length})
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {legacyPhotos.map((photo, i) => (
+              <button
+                key={`legacy-${i}`}
+                onClick={() => setLightboxPhoto(photo)}
+                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <img
+                  src={photo}
+                  alt={`Project photo ${i + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : (
+    <div className="flex flex-col items-center justify-center py-14 rounded-2xl bg-muted/40 border border-dashed border-border">
+      <ImageIcon className="w-10 h-10 text-muted-foreground/40 mb-2" />
+      <p className="text-sm text-muted-foreground">No photos uploaded yet</p>
+    </div>
+  );
+})()}
                 </TabsContent>
 
                 {/* ── Chat tab ── */}
