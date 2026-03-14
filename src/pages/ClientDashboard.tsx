@@ -1,7 +1,7 @@
 // src/pages/ClientDashboard.tsx
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth, useUser } from '@clerk/clerk-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SignedIn } from '@clerk/clerk-react';
 import {
@@ -45,7 +45,7 @@ interface Project {
   timeline: string;
   styles: string[];
   photos: string[];
-  status: 'open' | 'in_progress' | 'completed';
+  status: 'open' | 'payment_pending' | 'in_progress' | 'completed';
   proposals: Proposal[];
   designer?: Designer | null;
   createdAt: string;
@@ -61,9 +61,10 @@ interface DashboardStats {
 
 // ── Status config ──────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  open:        { label: 'Open',        dot: 'bg-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  in_progress: { label: 'In Progress', dot: 'bg-blue-400',    badge: 'bg-blue-50 text-blue-700 border-blue-200'           },
-  completed:   { label: 'Completed',   dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground border-border' },
+  open:            { label: 'Open',            dot: 'bg-emerald-400',        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200'   },
+  payment_pending: { label: 'Awaiting Payment', dot: 'bg-amber-400',          badge: 'bg-amber-50 text-amber-700 border-amber-200'         },
+  in_progress:     { label: 'In Progress',      dot: 'bg-blue-400',            badge: 'bg-blue-50 text-blue-700 border-blue-200'             },
+  completed:       { label: 'Completed',         dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground border-border'         },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -89,6 +90,7 @@ export default function ClientDashboard() {
   const { userId, getToken, isLoaded } = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [projects, setProjects]                   = useState<Project[]>([]);
   const [loading, setLoading]                     = useState(true);
@@ -139,36 +141,45 @@ export default function ClientDashboard() {
   // ─── Stats ───────────────────────────────────────────────────────────────────
   const stats: DashboardStats = useMemo(() => ({
     totalProjects:     projects.length,
-    activeProjects:    projects.filter(p => p.status === 'open' || p.status === 'in_progress').length,
+    activeProjects:    projects.filter(p => p.status === 'open' || p.status === 'in_progress' || p.status === 'payment_pending').length,
     completedProjects: projects.filter(p => p.status === 'completed').length,
     totalBudget:       projects.reduce((s, p) => s + p.budget, 0),
     pendingProposals:  projects.reduce((s, p) => s + (p.proposals?.filter(pr => pr.status === 'pending').length ?? 0), 0),
   }), [projects]);
 
   const filteredProjects = useMemo(() => projects.filter(p => {
-    if (activeTab === 'active')    return p.status === 'open' || p.status === 'in_progress';
+    if (activeTab === 'active')    return p.status === 'open' || p.status === 'in_progress' || p.status === 'payment_pending';
     if (activeTab === 'completed') return p.status === 'completed';
     return true;
   }), [projects, activeTab]);
 
-  // ─── Actions ─────────────────────────────────────────────────────────────────
-  const handleAcceptProposal = async (proposalId: string) => {
+  // ─── Accept Proposal → redirect to payment ───────────────────────────────────
+  const handleAcceptProposal = async (proposalId: string, projectId: string) => {
     setAcceptingProposal(proposalId);
     try {
       const token = await getToken();
       const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/accept`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
+
       if (res.ok) {
-        toast({ title: '🎉 Designer Hired!', description: 'Other proposals have been rejected automatically.' });
+        toast({
+          title: '🎉 Designer Hired!',
+          description: 'Redirecting to payment...',
+        });
         setSelectedProject(null);
-        await fetchProjects();
+        // ✅ STEP 4 CHANGE: Redirect to payment page instead of just refreshing
+        navigate(`/payment/${projectId}`);
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to hire designer', variant: 'destructive' });
       }
-    } catch { toast({ title: 'Error', description: 'Failed to hire designer', variant: 'destructive' }); }
-    finally { setAcceptingProposal(null); }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to hire designer', variant: 'destructive' });
+    } finally {
+      setAcceptingProposal(null);
+    }
   };
 
   const handleRejectProposal = async (proposalId: string) => {
@@ -191,8 +202,11 @@ export default function ClientDashboard() {
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to reject proposal', variant: 'destructive' });
       }
-    } catch { toast({ title: 'Error', description: 'Failed to reject proposal', variant: 'destructive' }); }
-    finally { setRejectingProposal(null); }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to reject proposal', variant: 'destructive' });
+    } finally {
+      setRejectingProposal(null);
+    }
   };
 
   const formatDate = (ds: string) =>
@@ -254,11 +268,11 @@ export default function ClientDashboard() {
               className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 mb-8"
             >
               {[
-                { label: 'Total',       value: stats.totalProjects,               icon: Briefcase,   color: 'text-primary',   bg: 'bg-primary/8'   },
-                { label: 'Active',      value: stats.activeProjects,              icon: TrendingUp,  color: 'text-blue-600',  bg: 'bg-blue-50'      },
-                { label: 'Completed',   value: stats.completedProjects,           icon: CheckCircle2,color: 'text-emerald-600',bg: 'bg-emerald-50'  },
-                { label: 'Proposals',   value: stats.pendingProposals,            icon: Users,       color: 'text-secondary', bg: 'bg-secondary/8' },
-                { label: 'Budget',      value: formatCurrency(stats.totalBudget), icon: DollarSign,  color: 'text-primary',   bg: 'bg-primary/8',  span: true },
+                { label: 'Total',     value: stats.totalProjects,               icon: Briefcase,    color: 'text-primary',    bg: 'bg-primary/8'    },
+                { label: 'Active',    value: stats.activeProjects,              icon: TrendingUp,   color: 'text-blue-600',   bg: 'bg-blue-50'      },
+                { label: 'Completed', value: stats.completedProjects,           icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50'  },
+                { label: 'Proposals', value: stats.pendingProposals,            icon: Users,        color: 'text-secondary',  bg: 'bg-secondary/8'  },
+                { label: 'Budget',    value: formatCurrency(stats.totalBudget), icon: DollarSign,   color: 'text-primary',    bg: 'bg-primary/8', span: true },
               ].map((stat, i) => (
                 <motion.div
                   key={i}
@@ -365,7 +379,6 @@ export default function ClientDashboard() {
                                   <FolderOpen className="w-10 h-10 text-muted-foreground/40" />
                                 </div>
                               )}
-                              {/* Status pill over image on mobile */}
                               <div className="absolute top-3 left-3 sm:hidden">
                                 <StatusBadge status={project.status} />
                               </div>
@@ -426,6 +439,22 @@ export default function ClientDashboard() {
                                 </div>
                               )}
 
+                              {/* ✅ Payment pending banner */}
+                              {project.status === 'payment_pending' && (
+                                <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                                  <p className="text-sm text-amber-800 font-medium">
+                                    💳 Payment required to start the project
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white h-8 px-3 text-xs"
+                                    onClick={() => navigate(`/payment/${project._id}`)}
+                                  >
+                                    Pay Now
+                                  </Button>
+                                </div>
+                              )}
+
                               {/* Action row */}
                               <div className="flex items-center justify-between gap-3 flex-wrap">
                                 <div className="text-xs text-muted-foreground">
@@ -439,6 +468,12 @@ export default function ClientDashboard() {
                                     <span className="flex items-center gap-1.5">
                                       <Clock className="w-3.5 h-3.5" />
                                       Awaiting proposals
+                                    </span>
+                                  )}
+                                  {project.status === 'payment_pending' && (
+                                    <span className="flex items-center gap-1.5 text-amber-600 font-medium">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      Awaiting Payment
                                     </span>
                                   )}
                                   {project.status === 'in_progress' && (
@@ -564,7 +599,6 @@ export default function ClientDashboard() {
                             {proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1)}
                           </span>
                         </div>
-                        {/* Price & timeline — inline on desktop */}
                         <div className="hidden sm:flex items-center gap-4 text-sm text-right flex-shrink-0">
                           <div>
                             <p className="text-xs text-muted-foreground">Price</p>
@@ -599,7 +633,8 @@ export default function ClientDashboard() {
                           <Button
                             size="sm"
                             className="flex-1 gap-1.5 h-9"
-                            onClick={() => handleAcceptProposal(proposal._id)}
+                            // ✅ STEP 4 CHANGE: Pass both proposalId and projectId
+                            onClick={() => handleAcceptProposal(proposal._id, selectedProject._id)}
                             disabled={!!acceptingProposal}
                           >
                             {acceptingProposal === proposal._id
