@@ -22,7 +22,11 @@ import { useToast } from '@/components/ui/use-toast';
 interface Designer { _id: string; name: string; avatar?: string; }
 interface Project {
   _id: string; title: string; description: string;
-  budget: number; timeline: string; photos: string[];
+  budget: number; timeline: string;
+  // ✅ FIX: include all photo arrays
+  photos: string[];
+  currentPhotos?: string[];
+  inspirationPhotos?: string[];
   status: 'open' | 'payment_pending' | 'in_progress' | 'completed';
   designer?: Designer | null;
   client: { clerkId: string; name: string; email?: string; phone?: string; avatar?: string; };
