@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { MapPin, DollarSign, Calendar, Images, Check, Eye, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { ProjectDetailModal } from './ProjectDetailModal';
@@ -18,6 +17,8 @@ interface Project {
   timeline: string;
   styles: string[];
   photos: string[];
+  // ✅ currentPhotos is primary, beforePhotos is legacy fallback
+  currentPhotos?: string[];
   beforePhotos?: string[];
   inspirationPhotos?: string[];
   inspirationNotes?: string;
@@ -47,11 +48,17 @@ export function ProjectCard({
 }: ProjectCardProps) {
   const [showModal, setShowModal] = useState(false);
 
-  const heroPhoto = project.beforePhotos?.[0] || project.photos?.[0];
-  const totalPhotos =
-    (project.beforePhotos?.length || 0) +
-    (project.inspirationPhotos?.length || 0) ||
-    project.photos?.length || 0;
+  // ✅ currentPhotos first, then beforePhotos (legacy), then photos (deprecated)
+  const heroPhoto =
+    project.currentPhotos?.[0] ||
+    project.beforePhotos?.[0] ||
+    project.photos?.[0];
+
+  // ✅ correct total count — sum all non-empty arrays
+  const currentCount     = project.currentPhotos?.length     || 0;
+  const inspirationCount = project.inspirationPhotos?.length || 0;
+  const legacyCount      = project.photos?.length            || 0;
+  const totalPhotos      = currentCount + inspirationCount || legacyCount;
 
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();

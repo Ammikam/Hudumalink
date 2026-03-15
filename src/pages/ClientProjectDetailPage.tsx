@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ProjectChat } from '@/components/chat/ProjectChat';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -34,10 +33,10 @@ interface Review { _id: string; rating: number; review: string; createdAt: strin
 interface Payment { _id: string; status: string; designerAmount: number; amount: number; }
 
 const STATUS_CONFIG = {
-  open:            { label: 'Open',             dot: 'bg-emerald-400',        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',   Icon: Clock        },
-  payment_pending: { label: 'Awaiting Payment',  dot: 'bg-amber-400',          badge: 'bg-amber-50 text-amber-700 border-amber-200',         Icon: Clock        },
-  in_progress:     { label: 'In Progress',       dot: 'bg-blue-400',            badge: 'bg-blue-50 text-blue-700 border-blue-200',             Icon: Clock        },
-  completed:       { label: 'Completed',          dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground border-border',         Icon: CheckCircle2 },
+  open:            { label: 'Open',            dot: 'bg-emerald-400',        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',   Icon: Clock        },
+  payment_pending: { label: 'Awaiting Payment', dot: 'bg-amber-400',          badge: 'bg-amber-50 text-amber-700 border-amber-200',         Icon: Clock        },
+  in_progress:     { label: 'In Progress',      dot: 'bg-blue-400',            badge: 'bg-blue-50 text-blue-700 border-blue-200',             Icon: Clock        },
+  completed:       { label: 'Completed',         dot: 'bg-muted-foreground/40', badge: 'bg-muted text-muted-foreground border-border',         Icon: CheckCircle2 },
 };
 
 function StatusPill({ status }: { status: string }) {
@@ -78,14 +77,9 @@ export default function ProjectDetailPage() {
         const token = await getToken();
         if (!token) throw new Error('No token');
 
-        // Fetch project and payment in parallel
         const [projectRes, paymentRes] = await Promise.all([
-          fetch(`http://localhost:5000/api/projects/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`http://localhost:5000/api/payments/project/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          fetch(`http://localhost:5000/api/projects/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`http://localhost:5000/api/payments/project/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         const projectData = await projectRes.json();
@@ -93,24 +87,16 @@ export default function ProjectDetailPage() {
 
         if (projectData.success) {
           setProject(projectData.project);
-
           if (projectData.project.status === 'completed') {
             const reviewRes = await fetch(`http://localhost:5000/api/reviews/project/${id}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             const reviewData = await reviewRes.json();
-            if (reviewData.success && reviewData.review) {
-              setExistingReview(reviewData.review);
-            } else {
-              setShowReview(true);
-            }
+            if (reviewData.success && reviewData.review) setExistingReview(reviewData.review);
+            else setShowReview(true);
           }
         }
-
-        if (paymentData.success && paymentData.payment) {
-          setPayment(paymentData.payment);
-        }
-
+        if (paymentData.success && paymentData.payment) setPayment(paymentData.payment);
       } catch {
         toast({ title: 'Error', description: 'Failed to load project details', variant: 'destructive' });
       } finally {
@@ -120,61 +106,36 @@ export default function ProjectDetailPage() {
     fetchData();
   }, [id, userId, isLoaded, getToken]);
 
-  // ✅ STEP 6: Mark complete AND release payment in one action
   const handleMarkComplete = async () => {
-    if (!window.confirm(
-      'Mark this project as complete?\n\nThis will release payment to the designer and cannot be undone.'
-    )) return;
-
+    if (!window.confirm('Mark this project as complete?\n\nThis will release payment to the designer and cannot be undone.')) return;
     setCompletingProject(true);
     try {
       const token = await getToken();
-
-      // Step A: Mark project as complete
       const completeRes = await fetch(`http://localhost:5000/api/projects/${id}/complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const completeData = await completeRes.json();
-
       if (!completeRes.ok) {
         toast({ title: 'Error', description: completeData.error || 'Failed to complete project', variant: 'destructive' });
         return;
       }
-
-      // Step B: Release payment to designer if one exists in escrow
       if (payment?._id && payment.status === 'held') {
         const releaseRes = await fetch(`http://localhost:5000/api/payments/release/${payment._id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         });
-        const releaseData = await releaseRes.json();
-
         if (releaseRes.ok) {
-          toast({
-            title: '✅ Project Complete!',
-            description: `KSh ${payment.designerAmount.toLocaleString()} has been sent to ${project?.designer?.name}. Please leave a review.`,
-          });
+          toast({ title: '✅ Project Complete!', description: `KSh ${payment.designerAmount.toLocaleString()} sent to ${project?.designer?.name}. Please leave a review.` });
         } else {
-          // Project is marked complete but payment release failed — flag it
-          toast({
-            title: '⚠️ Project Complete — Payment Pending',
-            description: 'Project marked complete but payment release failed. Please contact support.',
-            variant: 'destructive',
-          });
+          toast({ title: '⚠️ Project Complete — Payment Pending', description: 'Project marked complete but payment release failed. Please contact support.', variant: 'destructive' });
         }
       } else {
-        // No escrow payment found — just complete the project
-        toast({
-          title: '✅ Project Complete!',
-          description: 'Project marked as complete. Please leave a review.',
-        });
+        toast({ title: '✅ Project Complete!', description: 'Project marked as complete. Please leave a review.' });
       }
-
       setProject(prev => prev ? { ...prev, status: 'completed' } : null);
       setShowReview(true);
       setActiveTab('review');
-
     } catch {
       toast({ title: 'Error', description: 'Failed to complete project.', variant: 'destructive' });
     } finally {
@@ -183,22 +144,14 @@ export default function ProjectDetailPage() {
   };
 
   const handleSubmitReview = async () => {
-    if (rating === 0) {
-      toast({ title: 'Rating Required', description: 'Please select a star rating.', variant: 'destructive' });
-      return;
-    }
+    if (rating === 0) { toast({ title: 'Rating Required', description: 'Please select a star rating.', variant: 'destructive' }); return; }
     setSubmittingReview(true);
     try {
       const token = await getToken();
       const res = await fetch(`http://localhost:5000/api/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          projectId: id,
-          designerId: project?.designer?._id,
-          rating,
-          review: reviewText.trim(),
-        }),
+        body: JSON.stringify({ projectId: id, designerId: project?.designer?._id, rating, review: reviewText.trim() }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -214,7 +167,6 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // ── Guards ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center min-h-screen">
@@ -241,7 +193,12 @@ export default function ProjectDetailPage() {
 
   const isClient = project.client.clerkId === userId;
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ✅ Photo arrays with currentPhotos primary, legacy fallback
+  const currentPhotos     = project.currentPhotos?.length     ? project.currentPhotos     : [];
+  const inspirationPhotos = project.inspirationPhotos?.length ? project.inspirationPhotos : [];
+  const legacyPhotos      = project.photos?.length            ? project.photos            : [];
+  const hasNewPhotos      = currentPhotos.length > 0 || inspirationPhotos.length > 0;
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-muted/20 to-transparent">
@@ -256,30 +213,26 @@ export default function ProjectDetailPage() {
               </Link>
             </Button>
             <div className="h-4 w-px bg-border flex-shrink-0" />
-            <h1 className="font-display font-semibold text-sm sm:text-base truncate flex-1 min-w-0">
-              {project.title}
-            </h1>
+            <h1 className="font-display font-semibold text-sm sm:text-base truncate flex-1 min-w-0">{project.title}</h1>
             <StatusPill status={project.status} />
           </div>
         </div>
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-6xl">
 
-          {/* ── Completed alert ── */}
+          {/* Completed alert */}
           {project.status === 'completed' && existingReview && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
               <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
                 <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
                   <Trophy className="w-5 h-5 text-emerald-600" />
                 </div>
-                <p className="text-sm text-emerald-800 font-medium">
-                  Project complete — you've already reviewed this designer.
-                </p>
+                <p className="text-sm text-emerald-800 font-medium">Project complete — you've already reviewed this designer.</p>
               </div>
             </motion.div>
           )}
 
-          {/* ✅ Payment pending banner — shown when project needs payment */}
+          {/* Payment pending banner */}
           {project.status === 'payment_pending' && isClient && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
               <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-amber-50 border border-amber-200">
@@ -289,23 +242,17 @@ export default function ProjectDetailPage() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-amber-900">Payment required to start</p>
-                    <p className="text-xs text-amber-700">
-                      {project.designer?.name} is ready — secure your payment to unlock the project.
-                    </p>
+                    <p className="text-xs text-amber-700">{project.designer?.name} is ready — secure your payment to unlock the project.</p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white"
-                  onClick={() => navigate(`/payment/${project._id}`)}
-                >
+                <Button size="sm" className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white" onClick={() => navigate(`/payment/${project._id}`)}>
                   Pay Now
                 </Button>
               </div>
             </motion.div>
           )}
 
-          {/* ✅ Escrow info banner — shown when payment is held */}
+          {/* Escrow info banner */}
           {project.status === 'in_progress' && payment?.status === 'held' && isClient && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
               <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-200">
@@ -314,13 +261,13 @@ export default function ProjectDetailPage() {
                 </div>
                 <p className="text-sm text-blue-800">
                   <strong>KSh {payment.designerAmount.toLocaleString()}</strong> is held in escrow.
-                  It will be released to {project.designer?.name} when you mark the project complete.
+                  Released to {project.designer?.name} when you mark the project complete.
                 </p>
               </div>
             </motion.div>
           )}
 
-          {/* ── Budget + timeline pills (mobile) ── */}
+          {/* Budget + timeline pills (mobile only) */}
           <div className="flex gap-3 mb-5 sm:hidden">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/8 border border-primary/15 text-sm">
               <DollarSign className="w-4 h-4 text-primary" />
@@ -340,17 +287,14 @@ export default function ProjectDetailPage() {
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="w-full sm:w-auto mb-5 grid grid-cols-3 sm:flex">
                   <TabsTrigger value="details" className="text-xs sm:text-sm gap-1.5">
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    <span>Details</span>
+                    <ImageIcon className="w-3.5 h-3.5" /><span>Details</span>
                   </TabsTrigger>
                   <TabsTrigger value="chat" className="text-xs sm:text-sm gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>Chat</span>
+                    <MessageSquare className="w-3.5 h-3.5" /><span>Chat</span>
                   </TabsTrigger>
                   {(project.status === 'in_progress' || project.status === 'completed') && (
                     <TabsTrigger value="review" className="text-xs sm:text-sm gap-1.5">
-                      <Star className="w-3.5 h-3.5" />
-                      <span>{existingReview ? 'Review' : 'Complete'}</span>
+                      <Star className="w-3.5 h-3.5" /><span>{existingReview ? 'Review' : 'Complete'}</span>
                     </TabsTrigger>
                   )}
                 </TabsList>
@@ -369,22 +313,18 @@ export default function ProjectDetailPage() {
                         <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Hired Designer</p>
                         <p className="font-bold text-emerald-900 truncate">{project.designer.name}</p>
                         <p className="text-xs text-emerald-700">
-                          {project.status === 'completed'
-                            ? 'Project completed ✓'
-                            : project.status === 'payment_pending'
-                            ? 'Waiting for payment to start'
-                            : 'Working on your project'}
+                          {project.status === 'completed' ? 'Project completed ✓' :
+                           project.status === 'payment_pending' ? 'Waiting for payment to start' :
+                           'Working on your project'}
                         </p>
                       </div>
                       {project.status === 'in_progress' && isClient && (
                         <Button
-                          size="sm"
-                          variant="outline"
+                          size="sm" variant="outline"
                           className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 flex-shrink-0 text-xs h-8"
                           onClick={() => setActiveTab('review')}
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                          Complete
+                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Complete
                         </Button>
                       )}
                     </div>
@@ -395,98 +335,64 @@ export default function ProjectDetailPage() {
                     <p className="text-sm lg:text-base leading-relaxed">{project.description}</p>
                   </div>
 
-                 {/* ✅ FIX: use currentPhotos + inspirationPhotos, fall back to photos */}
-{(() => {
-  const currentPhotos     = project.currentPhotos?.length     ? project.currentPhotos     : [];
-  const inspirationPhotos = project.inspirationPhotos?.length ? project.inspirationPhotos : [];
-  const legacyPhotos      = project.photos?.length            ? project.photos            : [];
-  const hasNewPhotos      = currentPhotos.length > 0 || inspirationPhotos.length > 0;
-  const allPhotos         = hasNewPhotos ? [...currentPhotos, ...inspirationPhotos] : legacyPhotos;
-
-  return allPhotos.length > 0 ? (
-    <div className="space-y-4">
-      {/* Current space photos */}
-      {currentPhotos.length > 0 && (
-        <div>
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
-            Current Space ({currentPhotos.length})
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {currentPhotos.map((photo, i) => (
-              <button
-                key={`current-${i}`}
-                onClick={() => setLightboxPhoto(photo)}
-                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <img
-                  src={photo}
-                  alt={`Current space ${i + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Inspiration photos */}
-      {inspirationPhotos.length > 0 && (
-        <div>
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
-            Inspiration ({inspirationPhotos.length})
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {inspirationPhotos.map((photo, i) => (
-              <button
-                key={`inspiration-${i}`}
-                onClick={() => setLightboxPhoto(photo)}
-                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <img
-                  src={photo}
-                  alt={`Inspiration ${i + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Legacy photos fallback */}
-      {!hasNewPhotos && legacyPhotos.length > 0 && (
-        <div>
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
-            Photos ({legacyPhotos.length})
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {legacyPhotos.map((photo, i) => (
-              <button
-                key={`legacy-${i}`}
-                onClick={() => setLightboxPhoto(photo)}
-                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <img
-                  src={photo}
-                  alt={`Project photo ${i + 1}`}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  ) : (
-    <div className="flex flex-col items-center justify-center py-14 rounded-2xl bg-muted/40 border border-dashed border-border">
-      <ImageIcon className="w-10 h-10 text-muted-foreground/40 mb-2" />
-      <p className="text-sm text-muted-foreground">No photos uploaded yet</p>
-    </div>
-  );
-})()}
+                  {/* ✅ Photos: currentPhotos primary, inspirationPhotos secondary, legacy fallback */}
+                  {(hasNewPhotos || legacyPhotos.length > 0) ? (
+                    <div className="space-y-4">
+                      {currentPhotos.length > 0 && (
+                        <div>
+                          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
+                            Current Space ({currentPhotos.length})
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            {currentPhotos.map((photo, i) => (
+                              <button key={`current-${i}`} onClick={() => setLightboxPhoto(photo)}
+                                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary">
+                                <img src={photo} alt={`Current space ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {inspirationPhotos.length > 0 && (
+                        <div>
+                          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
+                            Inspiration ({inspirationPhotos.length})
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            {inspirationPhotos.map((photo, i) => (
+                              <button key={`inspiration-${i}`} onClick={() => setLightboxPhoto(photo)}
+                                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary">
+                                <img src={photo} alt={`Inspiration ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {!hasNewPhotos && legacyPhotos.length > 0 && (
+                        <div>
+                          <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-3">
+                            Photos ({legacyPhotos.length})
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            {legacyPhotos.map((photo, i) => (
+                              <button key={`legacy-${i}`} onClick={() => setLightboxPhoto(photo)}
+                                className="relative aspect-square rounded-xl overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary">
+                                <img src={photo} alt={`Project photo ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-14 rounded-2xl bg-muted/40 border border-dashed border-border">
+                      <ImageIcon className="w-10 h-10 text-muted-foreground/40 mb-2" />
+                      <p className="text-sm text-muted-foreground">No photos uploaded yet</p>
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* ── Chat tab ── */}
@@ -514,7 +420,7 @@ export default function ProjectDetailPage() {
                         </div>
                         <div>
                           <div className="flex gap-1 mb-1">
-                            {[1, 2, 3, 4, 5].map(s => (
+                            {[1,2,3,4,5].map(s => (
                               <Star key={s} className={`w-7 h-7 ${s <= existingReview.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />
                             ))}
                           </div>
@@ -544,12 +450,7 @@ export default function ProjectDetailPage() {
                             KSh {payment.designerAmount.toLocaleString()} will be sent to the designer.
                           </p>
                         )}
-                        <Button
-                          size="lg"
-                          onClick={handleMarkComplete}
-                          disabled={completingProject}
-                          className="gap-2"
-                        >
+                        <Button size="lg" onClick={handleMarkComplete} disabled={completingProject} className="gap-2">
                           {completingProject
                             ? <><Loader2 className="w-4 h-4 animate-spin" />Processing…</>
                             : <><CheckCircle2 className="w-4 h-4" />Mark as Complete & Release Payment</>
@@ -560,19 +461,13 @@ export default function ProjectDetailPage() {
                       <div className="space-y-5">
                         <div>
                           <h3 className="font-display font-bold text-lg">Leave a Review</h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            How was your experience with {project.designer?.name}?
-                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">How was your experience with {project.designer?.name}?</p>
                         </div>
                         <div>
-                          <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">
-                            Rating *
-                          </Label>
+                          <Label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 block">Rating *</Label>
                           <div className="flex gap-1.5">
-                            {[1, 2, 3, 4, 5].map(star => (
-                              <button
-                                key={star}
-                                type="button"
+                            {[1,2,3,4,5].map(star => (
+                              <button key={star} type="button"
                                 onClick={() => setRating(star)}
                                 onMouseEnter={() => setHoverRating(star)}
                                 onMouseLeave={() => setHoverRating(0)}
@@ -585,9 +480,7 @@ export default function ProjectDetailPage() {
                             ))}
                           </div>
                           {(rating > 0 || hoverRating > 0) && (
-                            <p className="text-sm text-muted-foreground mt-1.5 font-medium">
-                              {RATING_LABELS[hoverRating || rating]}
-                            </p>
+                            <p className="text-sm text-muted-foreground mt-1.5 font-medium">{RATING_LABELS[hoverRating || rating]}</p>
                           )}
                         </div>
                         <div>
@@ -595,21 +488,15 @@ export default function ProjectDetailPage() {
                             Your Feedback (optional)
                           </Label>
                           <Textarea
-                            rows={5}
-                            value={reviewText}
-                            onChange={(e) => setReviewText(e.target.value)}
+                            rows={5} value={reviewText}
+                            onChange={e => setReviewText(e.target.value)}
                             placeholder="Share your experience — quality of work, communication, professionalism…"
                             className="rounded-xl resize-none text-sm"
                             maxLength={1000}
                           />
                           <p className="text-xs text-muted-foreground mt-1 text-right">{reviewText.length}/1000</p>
                         </div>
-                        <Button
-                          size="lg"
-                          onClick={handleSubmitReview}
-                          disabled={submittingReview || rating === 0}
-                          className="w-full gap-2"
-                        >
+                        <Button size="lg" onClick={handleSubmitReview} disabled={submittingReview || rating === 0} className="w-full gap-2">
                           {submittingReview
                             ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting…</>
                             : <><Star className="w-4 h-4" />Submit Review</>
@@ -622,7 +509,7 @@ export default function ProjectDetailPage() {
               </Tabs>
             </div>
 
-            {/* ── Sidebar ── */}
+            {/* ── Sidebar (desktop only) ── */}
             <div className="hidden lg:block lg:col-span-1">
               <div className="sticky top-28 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -636,19 +523,14 @@ export default function ProjectDetailPage() {
                   </div>
                 </div>
 
-                {/* ✅ Escrow card in sidebar */}
                 {payment?.status === 'held' && (
                   <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200">
                     <div className="flex items-center gap-2 mb-2">
                       <Shield className="w-4 h-4 text-blue-600" />
                       <p className="text-sm font-semibold text-blue-900">In Escrow</p>
                     </div>
-                    <p className="text-xl font-bold text-blue-700 mb-1">
-                      KSh {payment.designerAmount.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-blue-600">
-                      Released to designer on project completion
-                    </p>
+                    <p className="text-xl font-bold text-blue-700 mb-1">KSh {payment.designerAmount.toLocaleString()}</p>
+                    <p className="text-xs text-blue-600">Released to designer on project completion</p>
                   </div>
                 )}
 
@@ -664,23 +546,17 @@ export default function ProjectDetailPage() {
                       <p className="leading-relaxed text-sm text-foreground/80">{project.description}</p>
                     </div>
                   </div>
-
                   {project.designer && (
                     <div className="border-t pt-4">
                       <p className="text-sm text-muted-foreground mb-3">Designer</p>
                       <div className="flex items-center gap-3">
                         <Avatar className="w-11 h-11 ring-2 ring-border flex-shrink-0">
                           <AvatarImage src={project.designer.avatar} />
-                          <AvatarFallback className="text-sm font-bold">
-                            {project.designer.name?.[0]?.toUpperCase()}
-                          </AvatarFallback>
+                          <AvatarFallback className="text-sm font-bold">{project.designer.name?.[0]?.toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
                           <p className="font-semibold text-base truncate">{project.designer.name}</p>
-                          <button
-                            className="text-sm text-secondary hover:underline"
-                            onClick={() => setActiveTab('chat')}
-                          >
+                          <button className="text-sm text-secondary hover:underline" onClick={() => setActiveTab('chat')}>
                             Send message →
                           </button>
                         </div>
@@ -698,9 +574,7 @@ export default function ProjectDetailPage() {
       <AnimatePresence>
         {lightboxPhoto && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setLightboxPhoto(null)}
             className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
           >
@@ -711,13 +585,10 @@ export default function ProjectDetailPage() {
               <X className="w-5 h-5 text-white" />
             </button>
             <motion.img
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              src={lightboxPhoto}
-              alt="Full size photo"
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              src={lightboxPhoto} alt="Full size photo"
               className="max-w-full max-h-full rounded-xl object-contain"
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             />
           </motion.div>
         )}

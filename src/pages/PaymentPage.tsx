@@ -1,4 +1,4 @@
-// src/pages/client/PaymentPage.tsx
+// src/pages/PaymentPage.tsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
@@ -39,16 +39,16 @@ export default function PaymentPage() {
   const { getToken } = useAuth();
   const { toast } = useToast();
 
-  const [project, setProject]               = useState<Project | null>(null);
-  const [existingPayment, setExistingPayment] = useState<ExistingPayment | null>(null);
-  const [loading, setLoading]               = useState(true);
-  const [processing, setProcessing]         = useState(false);
-  const [paymentStatus, setPaymentStatus]   = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
+  const [project, setProject]                   = useState<Project | null>(null);
+  const [existingPayment, setExistingPayment]   = useState<ExistingPayment | null>(null);
+  const [loading, setLoading]                   = useState(true);
+  const [processing, setProcessing]             = useState(false);
+  const [paymentStatus, setPaymentStatus]       = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
 
   // Form
-  const [phoneNumber, setPhoneNumber]   = useState('');
-  const [amount, setAmount]             = useState('');
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [phoneNumber, setPhoneNumber]       = useState('');
+  const [amount, setAmount]                 = useState('');
+  const [agreedToTerms, setAgreedToTerms]   = useState(false);
 
   // Calculations
   const totalAmount    = Number(amount) || 0;
@@ -63,7 +63,6 @@ export default function PaymentPage() {
     try {
       const token = await getToken();
 
-      // Fetch project and check for existing payment in parallel
       const [projectRes, paymentRes] = await Promise.all([
         fetch(`http://localhost:5000/api/projects/${projectId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -81,7 +80,6 @@ export default function PaymentPage() {
         setAmount(projectData.project.budget.toString());
       }
 
-      // ✅ GUARD: If a held payment already exists, project is already paid
       if (paymentData.success && paymentData.payment?.status === 'held') {
         setExistingPayment(paymentData.payment);
       }
@@ -159,8 +157,11 @@ export default function PaymentPage() {
   };
 
   const pollPaymentStatus = async (paymentId: string) => {
-    const maxAttempts = 30;
-    let attempts = 0;
+    // ✅ FIX: poll every 3 seconds for up to 3 minutes (60 attempts)
+    // Safaricom sandbox callbacks can take 60-90 seconds
+    const maxAttempts = 60;
+    const intervalMs  = 3000;
+    let attempts      = 0;
 
     const interval = setInterval(async () => {
       attempts++;
@@ -183,7 +184,10 @@ export default function PaymentPage() {
               description: 'Funds are held securely. Your designer can now start work.',
             });
             setTimeout(() => navigate('/client/dashboard'), 2000);
-          } else if (status === 'failed') {
+            return;
+          }
+
+          if (status === 'failed') {
             clearInterval(interval);
             setPaymentStatus('failed');
             setProcessing(false);
@@ -192,26 +196,36 @@ export default function PaymentPage() {
               description: 'Please try again.',
               variant: 'destructive',
             });
+            return;
           }
         }
 
+        // Reassure user at 30 seconds
+        if (attempts === 10) {
+          toast({
+            title: '⏳ Still waiting...',
+            description: "Please complete the M-Pesa prompt on your phone if you haven't yet.",
+          });
+        }
+
+        // ✅ Timeout resets to idle not failed — payment may still arrive via callback
         if (attempts >= maxAttempts) {
           clearInterval(interval);
-          setPaymentStatus('failed');
+          setPaymentStatus('idle');
           setProcessing(false);
           toast({
-            title: 'Payment Timeout',
-            description: 'Please check your payment status in your dashboard.',
+            title: 'Taking longer than expected',
+            description: 'Your payment may still be processing. Check your dashboard in a few minutes.',
             variant: 'destructive',
           });
         }
       } catch (error) {
         console.error('Status poll error:', error);
       }
-    }, 1000);
+    }, intervalMs);
   };
 
-  // ── Loading ────────────────────────────────────────────────────────────────
+  // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <Layout>
@@ -222,7 +236,7 @@ export default function PaymentPage() {
     );
   }
 
-  // ── Project not found ──────────────────────────────────────────────────────
+  // ── Project not found ────────────────────────────────────────────────────
   if (!project) {
     return (
       <Layout>
@@ -234,8 +248,7 @@ export default function PaymentPage() {
     );
   }
 
-  // ── Project not in payment_pending state ───────────────────────────────────
-  // Guards against clients navigating directly to /payment/:id for wrong projects
+  // ── Already paid ─────────────────────────────────────────────────────────
   if (project.status === 'in_progress' || project.status === 'completed') {
     return (
       <Layout>
@@ -258,7 +271,7 @@ export default function PaymentPage() {
     );
   }
 
-  // ── Held payment already exists (pending M-Pesa that already went through) ─
+  // ── Payment already in escrow ────────────────────────────────────────────
   if (existingPayment) {
     return (
       <Layout>
@@ -283,7 +296,7 @@ export default function PaymentPage() {
     );
   }
 
-  // ── Main payment form ──────────────────────────────────────────────────────
+  // ── Main payment form ────────────────────────────────────────────────────
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-12">
@@ -327,7 +340,7 @@ export default function PaymentPage() {
 
                 <div className="space-y-6">
 
-                  {/* Amount — locked to project budget */}
+                  {/* Amount */}
                   <div>
                     <Label htmlFor="amount">Payment Amount (KSh)</Label>
                     <div className="relative mt-2">
@@ -409,10 +422,14 @@ export default function PaymentPage() {
                     <Alert>
                       <Smartphone className="w-4 h-4" />
                       <AlertDescription>
-                        Check your phone and enter your M-Pesa PIN to complete payment
+                        <p className="font-medium mb-1">Waiting for M-Pesa confirmation...</p>
+                        <p className="text-xs text-muted-foreground">
+                          Check your phone and enter your PIN. This can take up to 2 minutes on sandbox.
+                        </p>
                       </AlertDescription>
                     </Alert>
                   )}
+
                   {paymentStatus === 'success' && (
                     <Alert className="border-green-500 bg-green-50">
                       <CheckCircle className="w-4 h-4 text-green-600" />
@@ -421,11 +438,26 @@ export default function PaymentPage() {
                       </AlertDescription>
                     </Alert>
                   )}
+
                   {paymentStatus === 'failed' && (
                     <Alert variant="destructive">
                       <AlertCircle className="w-4 h-4" />
                       <AlertDescription>
                         Payment failed. Please check your M-Pesa balance and try again.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* ✅ Idle after timeout — not a failure, just slow */}
+                  {paymentStatus === 'idle' && !processing && amount && (
+                    <Alert className="border-amber-300 bg-amber-50">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <AlertDescription className="text-amber-800">
+                        <p className="font-medium mb-1">Payment still processing</p>
+                        <p className="text-xs">
+                          If you completed the M-Pesa prompt, your payment is likely still being confirmed.
+                          Check your dashboard in a few minutes or try again below.
+                        </p>
                       </AlertDescription>
                     </Alert>
                   )}
@@ -503,6 +535,21 @@ export default function PaymentPage() {
                   </div>
                 </div>
               </Card>
+
+              {/* Processing indicator */}
+              {processing && (
+                <Card className="p-4 border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold">Waiting for confirmation</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sandbox can take 1-2 minutes
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )}
             </motion.div>
           </div>
         </div>
