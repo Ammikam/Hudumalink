@@ -71,20 +71,21 @@ export default function EarningsPage() {
     }
   };
 
-  const fetchPayments = async () => {
-    try {
-      const token = await getToken();
-      const res = await fetch('http://localhost:5000/api/payments/my-payments', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.success) setPayments(data.payments);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to load earnings data', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchPayments = async () => {
+  try {
+    const token = await getToken();
+    // ✅ Only fetch payments where this user is the designer
+    const res = await fetch('http://localhost:5000/api/payments/my-payments?role=designer', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.success) setPayments(data.payments);
+  } catch (error) {
+    toast({ title: 'Error', description: 'Failed to load earnings data', variant: 'destructive' });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSavePhone = async () => {
     if (!newPhone.trim() || newPhone.length < 10) {
