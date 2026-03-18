@@ -320,6 +320,107 @@ export default function ProjectDetailPage() {
             )}
           </div>
 
+          {/* ── Mobile-only info cards ── */}
+<div className="lg:hidden space-y-3 mb-5">
+
+  {/* Project details */}
+  <div className="rounded-2xl border border-border/60 bg-background p-4">
+    <div className="grid grid-cols-2 gap-3">
+      <div className="flex items-center gap-2">
+        <DollarSign className="w-4 h-4 text-primary flex-shrink-0" />
+        <div>
+          <p className="text-xs text-muted-foreground">Budget</p>
+          <p className="text-sm font-bold text-primary">KSh {project.budget.toLocaleString()}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <div>
+          <p className="text-xs text-muted-foreground">Timeline</p>
+          <p className="text-sm font-semibold">{project.timeline}</p>
+        </div>
+      </div>
+      {project.location && (
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <div>
+            <p className="text-xs text-muted-foreground">Location</p>
+            <p className="text-sm font-semibold truncate">{project.location}</p>
+          </div>
+        </div>
+      )}
+      {project.createdAt && (
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <div>
+            <p className="text-xs text-muted-foreground">Posted</p>
+            <p className="text-sm font-semibold">{formatDate(project.createdAt)}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* Payment mini card */}
+  {payment && (
+    <div className={cn(
+      'p-4 rounded-2xl border',
+      payment.status === 'held'     ? 'bg-amber-50 border-amber-200' :
+      payment.status === 'released' ? 'bg-green-50 border-green-200' :
+      payment.status === 'pending'  ? 'bg-blue-50 border-blue-200' :
+                                      'bg-muted border-border'
+    )}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Shield className={cn('w-4 h-4',
+            payment.status === 'held'     ? 'text-amber-600' :
+            payment.status === 'released' ? 'text-green-600' :
+            payment.status === 'pending'  ? 'text-blue-600' : 'text-muted-foreground'
+          )} />
+          <div>
+            <p className={cn('text-sm font-semibold',
+              payment.status === 'held'     ? 'text-amber-900' :
+              payment.status === 'released' ? 'text-green-900' :
+              payment.status === 'pending'  ? 'text-blue-900' : 'text-foreground'
+            )}>
+              {payment.status === 'held'     ? 'In Escrow' :
+               payment.status === 'released' ? 'Payment Released' :
+               payment.status === 'pending'  ? 'Payment Pending' : 'Payment'}
+            </p>
+            <p className={cn('text-xs',
+              payment.status === 'held'     ? 'text-amber-600' :
+              payment.status === 'released' ? 'text-green-600' :
+              payment.status === 'pending'  ? 'text-blue-600' : 'text-muted-foreground'
+            )}>
+              {payment.status === 'held'     ? `KSh ${payment.designerAmount.toLocaleString()} goes to designer` :
+               payment.status === 'released' ? `KSh ${payment.designerAmount.toLocaleString()} sent to designer` :
+               payment.status === 'pending'  ? 'Awaiting M-Pesa confirmation' : ''}
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className={cn('text-xl font-bold',
+            payment.status === 'held'     ? 'text-amber-700' :
+            payment.status === 'released' ? 'text-green-700' :
+            payment.status === 'pending'  ? 'text-blue-700' : 'text-foreground'
+          )}>
+            KSh {payment.amount.toLocaleString()}
+          </p>
+          {payment.status !== 'released' && (
+            <button
+              onClick={() => setActiveTab('payment')}
+              className="text-xs font-medium mt-0.5 hover:underline opacity-70 hover:opacity-100 transition-opacity">
+              View details →
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )}
+
+  
+</div>
+
           {/* ── Main grid ── */}
           <div className="grid lg:grid-cols-3 gap-6">
 
