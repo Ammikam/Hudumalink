@@ -1,7 +1,7 @@
-// src/components/Inspiration/InspirationCard.tsx - WITH OPTIMIZED IMAGES
+// src/components/Inspiration/InspirationCard.tsx
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Eye, User, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Heart, User, Sparkles, CheckCircle2 } from 'lucide-react';
 import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -27,8 +27,6 @@ interface InspirationCardProps {
     designerId?: string;
     designerAvatar?: string;
     verified?: boolean;
-    likes?: number;
-    views?: number;
     isPreferred?: boolean;
   };
   index?: number;
@@ -36,8 +34,6 @@ interface InspirationCardProps {
 
 export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps) {
   const navigate = useNavigate();
-  const [isHovered, setIsHovered] = useState(false);
-  const [imageError, setImageError] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const { isIdeaSaved, toggleSaveIdea } = useStore();
   const isSaved = isIdeaSaved(inspiration._id || inspiration.id || '');
@@ -54,20 +50,15 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
     }
   };
 
-  const handleCardClick = () => {
-    setShowDetail(true);
-  };
-
-  // Handle different image structures
   const beforeImage = inspiration.beforeImage || inspiration.image || '';
-  const afterImage = inspiration.afterImage || inspiration.image || '';
+  const afterImage  = inspiration.afterImage  || inspiration.image || '';
+  const hasSlider   = beforeImage && afterImage && beforeImage !== afterImage;
 
-  // If no images at all, show placeholder
   if (!beforeImage && !afterImage) {
     return (
       <div className="rounded-2xl overflow-hidden bg-muted p-8 text-center">
-        <p className="text-muted-foreground">No images available</p>
-        <p className="text-xs text-muted-foreground mt-2">{inspiration.title}</p>
+        <p className="text-muted-foreground text-sm">No images available</p>
+        <p className="text-xs text-muted-foreground mt-1">{inspiration.title}</p>
       </div>
     );
   }
@@ -78,31 +69,36 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
         initial={{ opacity: 0, scale: 0.95 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
-        transition={{ delay: index * 0.05, duration: 0.4 }}
-        className="group relative rounded-2xl overflow-hidden cursor-pointer shadow-medium hover:shadow-strong transition-all"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={handleCardClick}
+        transition={{ delay: Math.min(index * 0.05, 0.3), duration: 0.4 }}
+        className="group relative rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300"
+        onClick={() => setShowDetail(true)}
       >
-        {/* Preferred Badge */}
+        {/* Preferred badge */}
         {inspiration.isPreferred && (
-          <div className="absolute top-3 left-3 z-10">
-            <Badge className="bg-primary/90 backdrop-blur-sm gap-1 shadow-lg">
+          <div className="absolute top-2.5 left-2.5 z-10">
+            <Badge className="bg-primary/90 backdrop-blur-sm gap-1 shadow-md text-xs">
               <Sparkles className="w-3 h-3" />
               For You
             </Badge>
           </div>
         )}
 
-        {/* 
-          OPTIMIZED IMAGES: 
-          - Uses 'card' size (800x1000) for desktop masonry grid
-          - Cloudinary auto-optimizes format (WebP for supported browsers)
-          - Lazy loading built-in
-          - Blur placeholder while loading
-        */}
-        <div className="aspect-[4/5] bg-muted relative">
-          {beforeImage && afterImage && beforeImage !== afterImage ? (
+        {/* Save button */}
+        <button
+          onClick={handleSave}
+          className={cn(
+            'absolute top-2.5 right-2.5 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-300 shadow-md z-10',
+            isSaved
+              ? 'bg-secondary text-secondary-foreground scale-100 opacity-100'
+              : 'bg-white/90 backdrop-blur-sm text-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 scale-90 group-hover:scale-100'
+          )}
+        >
+          <Heart className={cn('w-4 h-4', isSaved && 'fill-current')} />
+        </button>
+
+        {/* Image */}
+        <div className="aspect-[4/5] bg-muted">
+          {hasSlider ? (
             <BeforeAfterSlider
               beforeImage={beforeImage}
               afterImage={afterImage}
@@ -119,96 +115,66 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
               showPlaceholder
             />
           )}
-          
-          {imageError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted">
-              <p className="text-muted-foreground text-sm">Image not available</p>
-            </div>
-          )}
         </div>
 
-        {/* Hover Overlay with Designer Info */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-5">
-          <div className="translate-y-8 group-hover:translate-y-0 transition-transform duration-500 space-y-3">
-            {/* Title & Style */}
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
-                  {inspiration.style}
-                </Badge>
-              </div>
-              <h3 className="font-display text-xl font-bold text-white line-clamp-2">
-                {inspiration.title}
-              </h3>
-            </div>
+        {/* ── Info overlay ── */}
+        {/* Mobile: always visible at bottom. Desktop: slides up on hover */}
+        <div className={cn(
+          'absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent',
+          'flex flex-col justify-end p-3 sm:p-4',
+          // Mobile: always show. Desktop: animate on hover
+          'sm:opacity-0 sm:group-hover:opacity-100 sm:transition-opacity sm:duration-400',
+        )}>
+          <div className={cn(
+            'space-y-2',
+            // Mobile: static. Desktop: slide up
+            'sm:translate-y-6 sm:group-hover:translate-y-0 sm:transition-transform sm:duration-400',
+          )}>
+            {/* Style tag */}
+            <Badge
+              variant="secondary"
+              className="bg-white/20 text-white border-white/30 text-xs backdrop-blur-sm"
+            >
+              {inspiration.style}
+            </Badge>
 
-            {/* Designer Info */}
+            {/* Title */}
+            <h3 className="font-display text-sm sm:text-base lg:text-lg font-bold text-white line-clamp-2 leading-snug">
+              {inspiration.title}
+            </h3>
+
+            {/* Designer row */}
             {inspiration.designerName && (
-              <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/20">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <Avatar className="w-8 h-8 ring-2 ring-white/30">
+              <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/20">
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <Avatar className="w-6 h-6 sm:w-7 sm:h-7 ring-1 ring-white/30 flex-shrink-0">
                     <AvatarImage src={inspiration.designerAvatar} />
-                    <AvatarFallback className="text-xs bg-primary text-white">
-                      {inspiration.designerName.split(' ').map(n => n[0]).join('')}
+                    <AvatarFallback className="text-[10px] bg-primary text-white">
+                      {inspiration.designerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium text-sm flex items-center gap-1 truncate">
-                      {inspiration.designerName}
-                      {inspiration.verified && (
-                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                      )}
-                    </p>
-                  </div>
+                  <p className="text-white text-xs sm:text-sm font-medium truncate flex items-center gap-1">
+                    {inspiration.designerName}
+                    {inspiration.verified && (
+                      <CheckCircle2 className="w-3 h-3 flex-shrink-0 text-blue-300" />
+                    )}
+                  </p>
                 </div>
-
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="bg-white/90 hover:bg-white text-black text-xs h-7 px-3"
+                  className="bg-white/90 hover:bg-white text-black text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3 flex-shrink-0"
                   onClick={handleViewDesigner}
                 >
-                  <User className="w-3 h-3 mr-1" />
-                  View
+                  <User className="w-3 h-3 sm:mr-1" />
+                  <span className="hidden sm:inline">View</span>
                 </Button>
-              </div>
-            )}
-
-            {/* Stats */}
-            {(inspiration.views || inspiration.likes) && (
-              <div className="flex items-center gap-4 text-white/80 text-xs">
-                {inspiration.views !== undefined && (
-                  <div className="flex items-center gap-1">
-                    <Eye className="w-3.5 h-3.5" />
-                    {inspiration.views.toLocaleString()}
-                  </div>
-                )}
-                {inspiration.likes !== undefined && (
-                  <div className="flex items-center gap-1">
-                    <Heart className="w-3.5 h-3.5" />
-                    {inspiration.likes.toLocaleString()}
-                  </div>
-                )}
               </div>
             )}
           </div>
         </div>
-
-        {/* Save Button */}
-        <button
-          onClick={handleSave}
-          className={cn(
-            'absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg z-10',
-            isSaved
-              ? 'bg-secondary text-secondary-foreground scale-100'
-              : 'bg-white/90 backdrop-blur-sm text-foreground opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100'
-          )}
-        >
-          <Heart className={cn('w-5 h-5', isSaved && 'fill-current')} />
-        </button>
       </motion.div>
 
-      {/* Detail Modal */}
       {showDetail && (
         <InspirationDetailModal
           inspirationId={inspiration._id || inspiration.id || ''}
