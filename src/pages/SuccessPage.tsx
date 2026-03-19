@@ -96,7 +96,7 @@ export default function SuccessPage() {
               className="flex flex-col sm:flex-row gap-3"
             >
               <Button
-                onClick={() => navigate('/client/dashboard')}
+                onClick={() => navigate('/dashboard/client')}
                 size="lg"
                 className="flex-1 gap-2"
               >
