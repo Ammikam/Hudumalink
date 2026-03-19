@@ -271,7 +271,7 @@ export default function HomePage() {
             transition={{ delay: 0.1 }}
             className="text-base sm:text-lg opacity-90 max-w-2xl mx-auto mb-8"
           >
-            Post your project and receive proposals from Kenya's top designers — typically within 48 hours.
+            Post your project and receive proposals from Kenya's top designers, typically within 48 hours.
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
