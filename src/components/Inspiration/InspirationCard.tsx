@@ -1,13 +1,12 @@
 // src/components/Inspiration/InspirationCard.tsx
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, User, Sparkles, CheckCircle2 } from 'lucide-react';
+import { User, Sparkles, CheckCircle2 } from 'lucide-react';
 import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { useStore } from '../../store/use-store';
 import { cn } from '../../lib/utils';
 import { InspirationDetailModal } from './InspirationDetailModal';
 import { useNavigate } from 'react-router-dom';
@@ -33,21 +32,12 @@ interface InspirationCardProps {
 }
 
 export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps) {
-  const navigate = useNavigate();
+  const navigate    = useNavigate();
   const [showDetail, setShowDetail] = useState(false);
-  const { isIdeaSaved, toggleSaveIdea } = useStore();
-  const isSaved = isIdeaSaved(inspiration._id || inspiration.id || '');
-
-  const handleSave = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleSaveIdea(inspiration._id || inspiration.id || '');
-  };
 
   const handleViewDesigner = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (inspiration.designerId) {
-      navigate(`/designers/${inspiration.designerId}`);
-    }
+    if (inspiration.designerId) navigate(`/designers/${inspiration.designerId}`);
   };
 
   const beforeImage = inspiration.beforeImage || inspiration.image || '';
@@ -73,37 +63,17 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
         className="group relative rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300"
         onClick={() => setShowDetail(true)}
       >
-        {/* Preferred badge */}
         {inspiration.isPreferred && (
           <div className="absolute top-2.5 left-2.5 z-10">
             <Badge className="bg-primary/90 backdrop-blur-sm gap-1 shadow-md text-xs">
-              <Sparkles className="w-3 h-3" />
-              For You
+              <Sparkles className="w-3 h-3" /> For You
             </Badge>
           </div>
         )}
 
-        {/* Save button */}
-        <button
-          onClick={handleSave}
-          className={cn(
-            'absolute top-2.5 right-2.5 w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all duration-300 shadow-md z-10',
-            isSaved
-              ? 'bg-secondary text-secondary-foreground scale-100 opacity-100'
-              : 'bg-white/90 backdrop-blur-sm text-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 scale-90 group-hover:scale-100'
-          )}
-        >
-          <Heart className={cn('w-4 h-4', isSaved && 'fill-current')} />
-        </button>
-
-        {/* Image */}
         <div className="aspect-[4/5] bg-muted">
           {hasSlider ? (
-            <BeforeAfterSlider
-              beforeImage={beforeImage}
-              afterImage={afterImage}
-              className="w-full h-full"
-            />
+            <BeforeAfterSlider beforeImage={beforeImage} afterImage={afterImage} className="w-full h-full" />
           ) : (
             <OptimizedImage
               src={beforeImage || afterImage}
@@ -117,33 +87,22 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
           )}
         </div>
 
-        {/* ── Info overlay ── */}
-        {/* Mobile: always visible at bottom. Desktop: slides up on hover */}
+        {/* Info overlay — always visible on mobile, hover on desktop */}
         <div className={cn(
           'absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent',
           'flex flex-col justify-end p-3 sm:p-4',
-          // Mobile: always show. Desktop: animate on hover
           'sm:opacity-0 sm:group-hover:opacity-100 sm:transition-opacity sm:duration-400',
         )}>
           <div className={cn(
             'space-y-2',
-            // Mobile: static. Desktop: slide up
             'sm:translate-y-6 sm:group-hover:translate-y-0 sm:transition-transform sm:duration-400',
           )}>
-            {/* Style tag */}
-            <Badge
-              variant="secondary"
-              className="bg-white/20 text-white border-white/30 text-xs backdrop-blur-sm"
-            >
+            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs backdrop-blur-sm">
               {inspiration.style}
             </Badge>
-
-            {/* Title */}
             <h3 className="font-display text-sm sm:text-base lg:text-lg font-bold text-white line-clamp-2 leading-snug">
               {inspiration.title}
             </h3>
-
-            {/* Designer row */}
             {inspiration.designerName && (
               <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-white/20">
                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -155,9 +114,7 @@ export function InspirationCard({ inspiration, index = 0 }: InspirationCardProps
                   </Avatar>
                   <p className="text-white text-xs sm:text-sm font-medium truncate flex items-center gap-1">
                     {inspiration.designerName}
-                    {inspiration.verified && (
-                      <CheckCircle2 className="w-3 h-3 flex-shrink-0 text-blue-300" />
-                    )}
+                    {inspiration.verified && <CheckCircle2 className="w-3 h-3 flex-shrink-0 text-blue-300" />}
                   </p>
                 </div>
                 <Button
