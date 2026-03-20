@@ -3,11 +3,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout/Layout';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, MessageSquare, DollarSign, Clock, User, ArrowRight, Briefcase } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  Loader2, MessageSquare, DollarSign, Clock,
+  Briefcase, ArrowRight, CheckCircle2,
+} from 'lucide-react';
 
 interface Project {
   _id: string;
@@ -16,12 +18,19 @@ interface Project {
   budget: number;
   timeline: string;
   photos: string[];
+  currentPhotos?: string[];
   status: string;
-  client: {
-    name: string;
-    avatar?: string;
-  };
+  client: { name: string; avatar?: string; };
 }
+
+const containerVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.3 } },
+};
 
 export default function ActiveProjectsPage() {
   const { getToken } = useAuth();
@@ -59,119 +68,221 @@ export default function ActiveProjectsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="container mx-auto py-32 text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
-          <p className="mt-4 text-muted-foreground">Loading your active projects...</p>
+  // ── Loading ──────────────────────────────────────────────────────────────
+  if (loading) return (
+    <Layout>
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
         </div>
-      </Layout>
-    );
-  }
+        <p className="text-sm text-muted-foreground">Loading your projects…</p>
+      </div>
+    </Layout>
+  );
 
   return (
     <Layout>
-      <div className="container mx-auto py-12 px-4 max-w-4xl">
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold mb-2">Active Projects</h1>
-          <p className="text-muted-foreground text-lg">
-            {projects.length > 0
-              ? `You have ${projects.length} project${projects.length !== 1 ? 's' : ''} in progress`
-              : 'Projects you are hired for will appear here'}
-          </p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-muted/20 to-transparent">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 max-w-4xl">
 
-        {projects.length === 0 ? (
-          <Card className="p-16 text-center">
-            <Briefcase className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-            <p className="text-2xl font-bold mb-2">No active projects yet</p>
-            <p className="text-muted-foreground mb-6">
-              When a client hires you, your projects will appear here.
+          {/* ── Header ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl sm:text-3xl font-bold">Active Projects</h1>
+              {projects.length > 0 && (
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                  {projects.length}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {projects.length > 0
+                ? 'Projects where you are the hired designer'
+                : 'Projects you are hired for will appear here'}
             </p>
-            <Button asChild variant="outline">
-              <Link to="/designer/open-projects">Browse Open Projects</Link>
-            </Button>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {projects.map((project) => {
-              const unread = unreadCounts[project._id] ?? 0;
+          </motion.div>
 
-              return (
-                <Card key={project._id} className="overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row">
+          {/* ── Empty state ── */}
+          {projects.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center justify-center py-20 text-center px-4"
+            >
+              <div className="w-20 h-20 rounded-3xl bg-primary/8 flex items-center justify-center mb-6">
+                <Briefcase className="w-10 h-10 text-primary" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold mb-2">No active projects yet</h2>
+              <p className="text-muted-foreground text-sm max-w-sm mb-8">
+                When a client accepts your proposal, the project will appear here and you can start chatting.
+              </p>
+              <Button asChild>
+                <Link to="/designer/open-projects" className="gap-2">
+                  Browse Open Projects <ArrowRight className="w-4 h-4" />
+                </Link>
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="space-y-3"
+            >
+              {projects.map((project) => {
+                const unread    = unreadCounts[project._id] ?? 0;
+                const heroPhoto = project.currentPhotos?.[0] || project.photos?.[0];
 
-                    {/* Thumbnail */}
-                    <div className="sm:w-40 h-40 sm:h-auto flex-shrink-0 bg-muted relative overflow-hidden">
-                      {project.photos?.[0] ? (
-                        <img
-                          src={project.photos[0]}
-                          alt={project.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Briefcase className="w-10 h-10 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
+                return (
+                  <motion.div key={project._id} variants={itemVariants}>
+                    <Link
+                      to={`/designer/projects/${project._id}`}
+                      className="block group"
+                    >
+                      <div className="rounded-2xl border border-border/60 bg-background hover:border-border hover:shadow-md transition-all duration-200 overflow-hidden">
+                        <div className="flex">
 
-                    {/* Content */}
-                    <div className="flex-1 p-5 flex flex-col justify-between gap-4">
-                      <div>
-                        <div className="flex items-start justify-between gap-3 mb-1">
-                          <h3 className="text-xl font-bold leading-tight">{project.title}</h3>
-                          <Badge className="bg-blue-100 text-blue-800 flex-shrink-0">In Progress</Badge>
-                        </div>
-                        <p className="text-muted-foreground text-sm line-clamp-2">{project.description}</p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center justify-between gap-4">
-                        {/* Meta */}
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          {/* Client */}
-                          <div className="flex items-center gap-2">
-                            <Avatar className="w-6 h-6">
-                              <AvatarImage src={project.client?.avatar} />
-                              <AvatarFallback className="text-xs">
-                                {project.client?.name?.[0]?.toUpperCase() ?? 'C'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-foreground">{project.client?.name}</span>
-                          </div>
-                          {/* Budget */}
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
-                            <span>KSh {project.budget.toLocaleString()}</span>
-                          </div>
-                          {/* Timeline */}
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            <span>{project.timeline}</span>
-                          </div>
-                        </div>
-
-                        {/* CTA */}
-                        <Button asChild size="sm" className="relative">
-                          <Link to={`/designer/projects/${project._id}`}>
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            Open Chat
-                            {unread > 0 && (
-                              <span className="absolute -top-2 -right-2 min-w-[20px] h-5 px-1 bg-destructive text-white text-xs font-bold rounded-full flex items-center justify-center">
-                                {unread > 99 ? '99+' : unread}
-                              </span>
+                          {/* ── Thumbnail ── */}
+                          <div className="w-24 sm:w-36 flex-shrink-0 bg-muted relative overflow-hidden">
+                            {heroPhoto ? (
+                              <img
+                                src={heroPhoto}
+                                alt={project.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center min-h-[100px]">
+                                <Briefcase className="w-8 h-8 text-muted-foreground/40" />
+                              </div>
                             )}
-                          </Link>
-                        </Button>
+                            {/* Status dot */}
+                            <div className="absolute top-2 left-2">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500 text-white text-[10px] font-bold shadow">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                Active
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* ── Content ── */}
+                          <div className="flex-1 p-4 sm:p-5 flex flex-col justify-between gap-3 min-w-0">
+
+                            {/* Top: title + description */}
+                            <div>
+                              <h3 className="font-semibold text-base sm:text-lg leading-snug line-clamp-1 group-hover:text-primary transition-colors">
+                                {project.title}
+                              </h3>
+                              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">
+                                {project.description}
+                              </p>
+                            </div>
+
+                            {/* Bottom: meta + CTA */}
+                            <div className="flex items-center justify-between gap-3 flex-wrap">
+
+                              {/* Client + meta */}
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-1.5">
+                                  <Avatar className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0">
+                                    <AvatarImage src={project.client?.avatar} />
+                                    <AvatarFallback className="text-[10px] font-bold">
+                                      {project.client?.name?.[0]?.toUpperCase() ?? 'C'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs sm:text-sm font-medium text-foreground truncate max-w-[100px] sm:max-w-none">
+                                    {project.client?.name}
+                                  </span>
+                                </div>
+
+                                <span className="text-muted-foreground/40 hidden sm:inline">·</span>
+
+                                <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+                                  <DollarSign className="w-3.5 h-3.5" />
+                                  <span>KSh {project.budget.toLocaleString()}</span>
+                                </div>
+
+                                <span className="text-muted-foreground/40 hidden sm:inline">·</span>
+
+                                <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>{project.timeline}</span>
+                                </div>
+                              </div>
+
+                              {/* CTA button */}
+                              <div className="relative flex-shrink-0">
+                                <div className={`
+                                  inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors
+                                  ${unread > 0
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
+                                  }
+                                `}>
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">
+                                    {unread > 0 ? `${unread} new message${unread !== 1 ? 's' : ''}` : 'Open Chat'}
+                                  </span>
+                                  <span className="sm:hidden">
+                                    {unread > 0 ? unread : 'Chat'}
+                                  </span>
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Mobile-only budget + timeline */}
+                            <div className="flex items-center gap-3 sm:hidden">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <DollarSign className="w-3.5 h-3.5" />
+                                <span>KSh {project.budget.toLocaleString()}</span>
+                              </div>
+                              <span className="text-muted-foreground/40">·</span>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>{project.timeline}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+
+          {/* ── Summary footer ── */}
+          {projects.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mt-6 p-4 rounded-2xl bg-muted/40 border border-border/60 flex items-center gap-3"
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">
+                  {projects.length} active project{projects.length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Total value: KSh {projects.reduce((s, p) => s + p.budget, 0).toLocaleString()}
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="flex-shrink-0 text-xs gap-1">
+                <Link to="/designer/open-projects">
+                  Find more <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </Button>
+            </motion.div>
+          )}
+        </div>
       </div>
     </Layout>
   );

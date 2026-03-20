@@ -138,7 +138,7 @@ export default function ProposalsPage() {
                   {proposal.status === 'accepted' && (
                     <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
                       <p className="text-green-800 font-semibold text-sm">
-                        🎉 Congratulations! This proposal was accepted.
+                         Congratulations! This proposal was accepted.
                       </p>
                       <Button size="sm" asChild>
                         <Link to={`/designer/projects/${proposal.project._id}`}>
