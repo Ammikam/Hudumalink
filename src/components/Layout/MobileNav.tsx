@@ -33,7 +33,6 @@ const designerMainNav = [
   { href: '/designer/invites', icon: Mail, label: 'Invites' },
   { href: '/designer/add-inspiration', icon: Plus, label: 'Share', isMain: true },
   { href: '/designer/active-projects', icon: Briefcase, label: 'Projects' },
-  { href: '/designer/my-inspirations', label: 'My Work' },
   { href: '/designer/profile', icon: User, label: 'Me' },
 ];
 
