@@ -29,6 +29,7 @@ import ApplicationPendingPage from '@/pages/ApplicationPendingPage';
 import AddInspirationPage from '@/pages/designerpages/AddInpirationPage';
 import ClientProfilePage from "./pages/Clientprofilepage";
 import PaymentPage from './pages/PaymentPage';
+import MyInspirationsPage from "./pages/designerpages/MyInspirationPage";
 
 
 
@@ -72,6 +73,7 @@ const App = () => (
                 <Route path="/designer/active-projects" element={<ActiveProjectsPage />} />
                 <Route path="/designer/profile" element={<DesignerProfilePage />} />
                <Route path="/designer/earnings" element={<EarningsPage />} />
+               <Route path="/designer/my-inspirations" element={<MyInspirationsPage />} />
                <Route path="/designer/projects/:id" element={<DesignerProjectDetailPage />} />
                <Route path="/designer/add-inspiration" element={<AddInspirationPage />} />
              </Route>

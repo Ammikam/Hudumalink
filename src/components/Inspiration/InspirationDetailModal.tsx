@@ -14,8 +14,9 @@ import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
 interface InspirationDetailModalProps {
   inspirationId: string;
   onClose: () => void;
+  canDelete?: boolean;
+  onDeleted?: () => void;
 }
-
 interface InspirationDetail {
   _id: string;
   title: string;
@@ -33,7 +34,12 @@ interface InspirationDetail {
   createdAt: string;
 }
 
-export function InspirationDetailModal({ inspirationId, onClose }: InspirationDetailModalProps) {
+export function InspirationDetailModal({
+  inspirationId,
+  onClose,
+  canDelete = false,
+  onDeleted,
+}: InspirationDetailModalProps) {
   const navigate = useNavigate();
   const [inspiration, setInspiration]     = useState<InspirationDetail | null>(null);
   const [loading, setLoading]             = useState(true);

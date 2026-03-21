@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, Compass, Plus, User, 
   Briefcase, Mail, FileText, DollarSign, LayoutDashboard,
-  Menu, X, Settings
+  Menu, X, Settings,  Images 
 } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { cn } from '../../lib/utils';
@@ -33,6 +33,7 @@ const designerMainNav = [
   { href: '/designer/invites', icon: Mail, label: 'Invites' },
   { href: '/designer/add-inspiration', icon: Plus, label: 'Share', isMain: true },
   { href: '/designer/active-projects', icon: Briefcase, label: 'Projects' },
+  { href: '/designer/my-inspirations', label: 'My Work' },
   { href: '/designer/profile', icon: User, label: 'Me' },
 ];
 
@@ -42,6 +43,7 @@ const designerDrawerLinks = [
   { href: '/designer/proposals', label: 'My Proposals', icon: FileText },
   { href: '/designer/active-projects', label: 'Active Projects', icon: Briefcase },
   { href: '/designer/earnings', label: 'Earnings & Reviews', icon: DollarSign },
+   { href: '/designer/my-inspirations', label: 'My Inspirations', icon: Images },
   { href: '/designer/add-inspiration', label: 'Add Inspiration', icon: Plus },
   { href: '/designer/profile', label: 'My Profile', icon: User },
   { href: '/messages', label: 'Messages', icon: Mail },
@@ -109,7 +111,7 @@ export function MobileNav() {
                     className="absolute -top-8 left-1/2 -translate-x-1/2"
                   >
                     <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/90 flex items-center justify-center shadow-strong ring-4 ring-background hover:shadow-glow transition-all">
-                      <Icon className="w-8 h-8 text-primary-foreground" />
+                     {Icon && <Icon className="w-8 h-8 text-primary-foreground" />}
                     </div>
                   </motion.div>
                   {/* Spacer */}
@@ -165,14 +167,14 @@ export function MobileNav() {
                 className="flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all min-w-[60px]"
               >
                 <div className="relative">
-                  <Icon
+                  {Icon &&<Icon
                     className={cn(
                       'w-6 h-6 transition-all duration-300',
                       isActive 
                         ? 'text-primary scale-110' 
                         : 'text-muted-foreground'
                     )}
-                  />
+                  />}
                   {isActive && (
                     <motion.div
                       layoutId="mobileActiveIndicator"
@@ -247,6 +249,7 @@ export function MobileNav() {
                   const isActive = location.pathname === link.href || 
                     (link.href !== '/' && location.pathname.startsWith(link.href));
                   const Icon = link.icon;
+                  
 
                   return (
                     <Link
