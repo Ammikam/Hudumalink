@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sun, Moon, Sparkles, Briefcase, User, ChevronDown, Plus
+  Sun, Moon, Sparkles, Briefcase, User, ChevronDown, Plus, Images
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useStore } from '../../store/use-store';
@@ -17,6 +17,7 @@ const designerNavLinks = [
   { href: '/designer/invites', label: 'Invites' },
   { href: '/designer/proposals', label: 'Proposals' },
   { href: '/designer/active-projects', label: 'Active Projects' },
+  { href: '/designer/my-inspirations', label: 'My Inspirations'},
   { href: '/designer/earnings', label: 'Earnings' },
 ];
 

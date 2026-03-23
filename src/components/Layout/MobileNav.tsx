@@ -42,7 +42,7 @@ const designerDrawerLinks = [
   { href: '/designer/proposals', label: 'My Proposals', icon: FileText },
   { href: '/designer/active-projects', label: 'Active Projects', icon: Briefcase },
   { href: '/designer/earnings', label: 'Earnings & Reviews', icon: DollarSign },
-   { href: '/designer/my-inspirations', label: 'My Inspirations', icon: Images },
+  { href: '/designer/my-inspirations', label: 'My Inspirations', icon: Images },
   { href: '/designer/add-inspiration', label: 'Add Inspiration', icon: Plus },
   { href: '/designer/profile', label: 'My Profile', icon: User },
   { href: '/messages', label: 'Messages', icon: Mail },
