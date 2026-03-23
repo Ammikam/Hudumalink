@@ -30,6 +30,7 @@ import AddInspirationPage from '@/pages/designerpages/AddInpirationPage';
 import ClientProfilePage from "./pages/Clientprofilepage";
 import PaymentPage from './pages/PaymentPage';
 import MyInspirationsPage from "./pages/designerpages/MyInspirationPage";
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 
 
@@ -50,17 +51,18 @@ const App = () => (
               <Route path="/inspiration" element={<InspirationPage />} />
               <Route path="/designers" element={<DesignersPage />} />
               <Route path="/designer/:id" element={<DesignerProfilePage />} />
-              <Route path="/post-project" element={<PostProjectPage />} />
+              {/* <Route path="/post-project" element={<PostProjectPage />} /> */}
               <Route path="/success" element={<SuccessPage />} />
               <Route path="/designers/:id" element={<PublicDesignerProfile />} />
               <Route path="/become-designer" element={<BecomeDesignerPage />} />
               <Route path="/designer/application-pending" element={<ApplicationPendingPage />} />
-              <Route path="/profile" element={<ClientProfilePage />} />
-              <Route path="/payment/:projectId" element={<PaymentPage />} />
-
-              {/* Client Dashboard */}
-              <Route path="/dashboard/client" element={<ClientDashboard />} />
-              <Route path="/projects/:id" element={<ProjectDetailPage />} />
+              {/* <Route path="/profile" element={<ClientProfilePage />} /> */}
+              {/* <Route path="/payment/:projectId" element={<PaymentPage />} /> */}
+<Route path="/post-project" element={<ProtectedRoute><PostProjectPage /></ProtectedRoute>} />
+<Route path="/dashboard/client" element={<ProtectedRoute><ClientDashboard /></ProtectedRoute>} />
+<Route path="/projects/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
+<Route path="/payment/:projectId" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
+<Route path="/profile" element={<ProtectedRoute><ClientProfilePage /></ProtectedRoute>} />
 
               {/* Legacy Designer Dashboard (old path) */}
               <Route path="/dashboard/designer" element={<DesignerDashboard />} />
