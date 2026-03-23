@@ -1,5 +1,6 @@
 // src/pages/PublicDesignerProfile.tsx
 import { useEffect, useState, useCallback } from 'react';
+import { SignInButton } from '@clerk/clerk-react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { motion } from 'framer-motion';
@@ -193,9 +194,9 @@ export default function PublicDesignerProfile() {
                       </Link>
                     </Button>
                   ) : (
-                    <Button size="lg" asChild>
-                      <Link to="/sign-up">Sign Up to Hire</Link>
-                    </Button>
+                    <SignInButton mode="modal" fallbackRedirectUrl={`/designers/${designer._id}`}>
+                      <Button size="lg">Sign In to Hire</Button>
+                    </SignInButton>
                   )}
                   {designer.calendlyLink && (
                     <Button size="lg" variant="outline" className="border-white/50 text-white hover:bg-white/10" asChild>
