@@ -52,7 +52,7 @@ const App = () => (
               <Route path="/designers" element={<DesignersPage />} />
               <Route path="/designer/:id" element={<DesignerProfilePage />} />
               {/* <Route path="/post-project" element={<PostProjectPage />} /> */}
-              <Route path="/success" element={<SuccessPage />} />
+              {/* <Route path="/success" element={<SuccessPage />} /> */}
               <Route path="/designers/:id" element={<PublicDesignerProfile />} />
               <Route path="/become-designer" element={<BecomeDesignerPage />} />
               <Route path="/designer/application-pending" element={<ApplicationPendingPage />} />
@@ -63,6 +63,7 @@ const App = () => (
 <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
 <Route path="/payment/:projectId" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
 <Route path="/profile" element={<ProtectedRoute><ClientProfilePage /></ProtectedRoute>} />
+<Route path="/success" element={<ProtectedRoute><SuccessPage /></ProtectedRoute>}/>
 
               {/* Legacy Designer Dashboard (old path) */}
               <Route path="/dashboard/designer" element={<DesignerDashboard />} />
