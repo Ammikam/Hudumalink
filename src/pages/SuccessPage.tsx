@@ -1,5 +1,4 @@
 // src/pages/SuccessPage.tsx
-import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle2, ArrowRight, Home, Eye } from 'lucide-react';
@@ -11,20 +10,11 @@ export default function SuccessPage() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const { successMessage, redirectTo } = (location.state as {
+  const { successMessage} = (location.state as {
     successMessage?: string;
     redirectTo?: string;
   }) || {};
 
-  // Auto-redirect if redirectTo is provided (after 3 seconds)
-  useEffect(() => {
-    if (redirectTo) {
-      const timer = setTimeout(() => {
-        navigate(redirectTo);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [redirectTo, navigate]);
 
   return (
     <Layout>
@@ -53,7 +43,7 @@ export default function SuccessPage() {
               transition={{ delay: 0.3 }}
             >
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">
-                Success! 🎉
+                Success! 
               </h1>
               <p className="text-lg text-muted-foreground mb-8">
                 {successMessage || 'Your action was completed successfully!'}
@@ -114,18 +104,6 @@ export default function SuccessPage() {
                 Back to Home
               </Button>
             </motion.div>
-
-            {/* Auto-redirect message */}
-            {redirectTo && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
-                className="text-xs text-muted-foreground mt-6"
-              >
-                Redirecting you automatically in a few seconds...
-              </motion.p>
-            )}
           </Card>
         </motion.div>
       </div>

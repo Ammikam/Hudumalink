@@ -157,7 +157,7 @@ export default function PaymentPage() {
   };
 
   const pollPaymentStatus = async (paymentId: string) => {
-    // ✅ FIX: poll every 3 seconds for up to 3 minutes (60 attempts)
+    //  FIX: poll every 3 seconds for up to 3 minutes (60 attempts)
     // Safaricom sandbox callbacks can take 60-90 seconds
     const maxAttempts = 60;
     const intervalMs  = 3000;
@@ -180,7 +180,7 @@ export default function PaymentPage() {
             setPaymentStatus('success');
             setProcessing(false);
             toast({
-              title: '✅ Payment Successful!',
+              title: ' Payment Successful!',
               description: 'Funds are held securely. Your designer can now start work.',
             });
             setTimeout(() => navigate('/client/dashboard'), 2000);
@@ -208,7 +208,7 @@ export default function PaymentPage() {
           });
         }
 
-        // ✅ Timeout resets to idle not failed — payment may still arrive via callback
+        //  Timeout resets to idle not failed — payment may still arrive via callback
         if (attempts >= maxAttempts) {
           clearInterval(interval);
           setPaymentStatus('idle');
