@@ -45,6 +45,7 @@ export function Navbar() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
+        console.log('Designer status:', data, 'Token:', token?.slice(0, 20));
 
         setIsApprovedDesigner(data.success && data.status === 'approved');
       } catch (err) {
@@ -91,10 +92,17 @@ export function Navbar() {
               animate={{ scale: 1, opacity: 1 }}
               className="flex items-center gap-2"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary-foreground" />
+              {/* Logo Image */}
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+                <img 
+                  src="/logo.jpg" 
+                  alt="HudumaLink" 
+                  className="w-full h-full object-contain"
+                />
               </div>
-              <span className="font-display text-xl lg:text-2xl font-semibold">
+              
+              {/* Brand name — always visible, including on mobile */}
+              <span className="font-display text-lg lg:text-2xl font-semibold">
                 Huduma<span className="text-secondary">link</span>
               </span>
             </motion.div>
@@ -126,7 +134,7 @@ export function Navbar() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 lg:gap-4">
-            {/* ✅ Post Project Button - Desktop (Client mode only) */}
+            {/* Post Project Button - Desktop (Client mode only) */}
             {!isDesignerMode && (
               <Link to="/post-project" className="hidden lg:block">
                 <Button size="sm" className="gap-2">
@@ -136,7 +144,7 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* ✅ Add Inspiration Button - Desktop (Designer mode only) */}
+            {/* Add Inspiration Button - Desktop (Designer mode only) */}
             {isDesignerMode && (
               <Link to="/designer/add-inspiration" className="hidden lg:block">
                 <Button size="sm" className="gap-2">

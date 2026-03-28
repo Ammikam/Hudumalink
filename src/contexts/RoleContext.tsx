@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { Navigate, useLocation } from 'react-router-dom';
 
 interface RoleContextType {
   roles: string[];
@@ -8,8 +9,12 @@ interface RoleContextType {
   isDesigner: boolean;
   isPendingDesigner: boolean;
   isApprovedDesigner: boolean;
+  isSuspendedDesigner: boolean;
   isClient: boolean;
   isAdmin: boolean;
+  isBanned: boolean;
+  banReason: string | null;
+  suspendReason: string | null;
   activeRole: 'client' | 'designer' | 'admin';
   setActiveRole: (role: 'client' | 'designer' | 'admin') => void;
   designerProfile: any;
@@ -24,56 +29,70 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<string[]>(['client']);
   const [activeRole, setActiveRole] = useState<'client' | 'designer' | 'admin'>('client');
   const [designerProfile, setDesignerProfile] = useState<any>(null);
+  const [isBanned, setIsBanned] = useState(false);
+  const [banReason, setBanReason] = useState<string | null>(null);
+  const [suspendReason, setSuspendReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserRoles = async () => {
     if (!userId) {
       setRoles(['client']);
       setDesignerProfile(null);
+      setIsBanned(false);
+      setBanReason(null);
+      setSuspendReason(null);
       setLoading(false);
       return;
     }
 
     try {
-      // Get auth token for authenticated requests
       const token = await getToken();
-      
-      const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
-        credentials: 'include',
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch user data');
+      if (!token) {
+        setLoading(false);
+        return;
       }
 
-      const data = await res.json();
-      console.log('Fetched user data:', data); // Debug log
+      const res = await fetch('http://localhost:5000/api/users/designer-status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      if (data.success && data.user) {
-        const userRoles = data.user.roles || ['client'];
-        const profile = data.user.designerProfile || null;
-        
-        setRoles(userRoles);
-        setDesignerProfile(profile);
-        
-        console.log('User roles:', userRoles); // Debug log
-        console.log('Designer profile:', profile); // Debug log
-        
-        // Set active role intelligently
-        if (userRoles.includes('admin')) {
-          setActiveRole('admin');
-        } else if (userRoles.includes('designer') && profile?.status === 'approved') {
-          setActiveRole('designer');
-        } else {
-          setActiveRole('client');
+      if (res.status === 403) {
+        const data = await res.json();
+        if (data.banned) {
+          setIsBanned(true);
+          setBanReason(data.reason || null);
+          setLoading(false);
+          return;
         }
+      }
+
+      if (!res.ok) throw new Error('Failed to fetch status');
+
+      const data = await res.json();
+
+      setIsBanned(false);
+      setBanReason(null);
+
+      if (data.success && data.status === 'approved') {
+        setRoles(['client', 'designer']);
+        setDesignerProfile({ status: 'approved' });
+        setSuspendReason(null);
+        setActiveRole('designer');
+      } else if (data.success && data.status === 'pending') {
+        setRoles(['client', 'designer']);
+        setDesignerProfile({ status: 'pending' });
+        setSuspendReason(null);
+        setActiveRole('client');
+      } else if (data.success && data.status === 'suspended') {
+        setRoles(['client', 'designer']);
+        setDesignerProfile({ status: 'suspended' });
+        setSuspendReason(data.reason || null);
+        setActiveRole('client');
       } else {
-        // Fallback to client if no user data
         setRoles(['client']);
         setDesignerProfile(null);
+        setSuspendReason(null);
+        setActiveRole('client');
       }
     } catch (error) {
       console.error('Failed to fetch user roles:', error);
@@ -91,16 +110,11 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   }, [userId, isLoaded]);
 
   const hasRole = (role: string) => roles.includes(role);
-  
-  // Check if user has designer role AND is approved
+
   const isApprovedDesigner = hasRole('designer') && designerProfile?.status === 'approved';
-  
-  // Check if user has designer role AND is pending
   const isPendingDesigner = hasRole('designer') && designerProfile?.status === 'pending';
-  
-  // isDesigner is true if they're approved (for backwards compatibility)
+  const isSuspendedDesigner = hasRole('designer') && designerProfile?.status === 'suspended';
   const isDesigner = isApprovedDesigner;
-  
   const isClient = hasRole('client');
   const isAdmin = hasRole('admin');
 
@@ -112,8 +126,12 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         isDesigner,
         isPendingDesigner,
         isApprovedDesigner,
+        isSuspendedDesigner,
         isClient,
         isAdmin,
+        isBanned,
+        banReason,
+        suspendReason,
         activeRole,
         setActiveRole,
         designerProfile,
@@ -124,6 +142,24 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       {children}
     </RoleContext.Provider>
   );
+}
+
+// ─── BanGate ──────────────────────────────────────────────────────────────────
+// Wraps the entire app. If the user is banned, redirect to /banned from
+// ANY page — including public routes like / that ProtectedRoute never touches.
+export function BanGate({ children }: { children: ReactNode }) {
+  const { isBanned, loading } = useRoles();
+  const location = useLocation();
+
+  // Don't redirect if already on /banned or /sign-in (prevent loops)
+  const exemptPaths = ['/banned', '/sign-in', '/sign-up'];
+  const isExempt = exemptPaths.some(p => location.pathname.startsWith(p));
+
+  if (!loading && isBanned && !isExempt) {
+    return <Navigate to="/banned" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 export const useRoles = () => {

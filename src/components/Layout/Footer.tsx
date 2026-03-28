@@ -42,14 +42,16 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-8">
           {/* Brand Section */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-primary-foreground/20 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="font-display text-2xl font-semibold">
-                Huduma<span className="text-secondary">link</span>
-              </span>
-            </Link>
+           <Link to="/" className="flex items-center gap-2 mb-6">
+    <img 
+      src="/logo.jpg" 
+      alt="HudumaLink" 
+      className="w-10 h-10 object-contain rounded-xl"
+    />
+    <span className="font-display text-2xl font-semibold">
+      Huduma<span className="text-secondary">link</span>
+    </span>
+  </Link>
             <p className="text-primary-foreground/80 mb-6 max-w-sm">
               Kenya's premier interior design marketplace. Connecting you with the best designers to transform your space into something extraordinary.
             </p>
