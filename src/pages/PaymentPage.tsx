@@ -18,8 +18,19 @@ import { useToast } from '@/components/ui/use-toast';
 interface Project {
   _id: string;
   title: string;
-  budget: number;
+  budget: number;       // client's renovation budget — shown for context only, NOT charged
   status: string;
+  designer: {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
+}
+
+interface AcceptedProposal {
+  _id: string;
+  price: number;        // designer's quoted fee — this is what the client actually pays
+  timeline: string;
   designer: {
     _id: string;
     name: string;
@@ -40,20 +51,20 @@ export default function PaymentPage() {
   const { toast } = useToast();
 
   const [project, setProject]                   = useState<Project | null>(null);
+  const [proposal, setProposal]                 = useState<AcceptedProposal | null>(null);
   const [existingPayment, setExistingPayment]   = useState<ExistingPayment | null>(null);
   const [loading, setLoading]                   = useState(true);
   const [processing, setProcessing]             = useState(false);
   const [paymentStatus, setPaymentStatus]       = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
 
-  // Form
-  const [phoneNumber, setPhoneNumber]       = useState('');
-  const [amount, setAmount]                 = useState('');
-  const [agreedToTerms, setAgreedToTerms]   = useState(false);
+  const [phoneNumber, setPhoneNumber]     = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-  // Calculations
-  const totalAmount    = Number(amount) || 0;
-  const platformFee    = Math.round(totalAmount * 0.10);
-  const designerAmount = totalAmount - platformFee;
+  // The amount client pays = designer's quoted fee (proposal.price)
+  // project.budget is the renovation budget — paid directly, outside the platform
+  const designerFee    = proposal?.price ?? 0;
+  const platformFee    = Math.round(designerFee * 0.10);
+  const designerGets   = designerFee - platformFee;
 
   useEffect(() => {
     fetchPageData();
@@ -63,8 +74,12 @@ export default function PaymentPage() {
     try {
       const token = await getToken();
 
-      const [projectRes, paymentRes] = await Promise.all([
+      const [projectRes, proposalRes, paymentRes] = await Promise.all([
         fetch(`http://localhost:5000/api/projects/${projectId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        // ✅ Fetch the accepted proposal to get the correct designer fee
+        fetch(`http://localhost:5000/api/proposals/project/${projectId}/accepted`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`http://localhost:5000/api/payments/project/${projectId}`, {
@@ -72,12 +87,17 @@ export default function PaymentPage() {
         }),
       ]);
 
-      const projectData = await projectRes.json();
-      const paymentData = await paymentRes.json();
+      const projectData  = await projectRes.json();
+      const proposalData = await proposalRes.json();
+      const paymentData  = await paymentRes.json();
 
       if (projectData.success) {
         setProject(projectData.project);
-        setAmount(projectData.project.budget.toString());
+      }
+
+      // ✅ Use proposal price — not project.budget
+      if (proposalData.success && proposalData.proposal) {
+        setProposal(proposalData.proposal);
       }
 
       if (paymentData.success && paymentData.payment?.status === 'held') {
@@ -98,20 +118,15 @@ export default function PaymentPage() {
 
   const handlePayment = async () => {
     if (!agreedToTerms) {
-      toast({
-        title: 'Terms Required',
-        description: 'Please agree to the terms and conditions',
-        variant: 'destructive',
-      });
+      toast({ title: 'Terms Required', description: 'Please agree to the terms and conditions', variant: 'destructive' });
       return;
     }
-
     if (!phoneNumber || phoneNumber.length < 10) {
-      toast({
-        title: 'Invalid Phone',
-        description: 'Please enter a valid M-Pesa phone number',
-        variant: 'destructive',
-      });
+      toast({ title: 'Invalid Phone', description: 'Please enter a valid M-Pesa phone number', variant: 'destructive' });
+      return;
+    }
+    if (designerFee <= 0) {
+      toast({ title: 'Invalid Amount', description: 'Could not determine payment amount', variant: 'destructive' });
       return;
     }
 
@@ -122,13 +137,10 @@ export default function PaymentPage() {
       const token = await getToken();
       const res = await fetch('http://localhost:5000/api/payments/initiate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           projectId,
-          amount: totalAmount,
+          amount: designerFee,   // ✅ Always send the designer's quoted fee
           phoneNumber,
           paymentMethod: 'mpesa',
         }),
@@ -147,18 +159,12 @@ export default function PaymentPage() {
       }
     } catch (error: any) {
       setPaymentStatus('failed');
-      toast({
-        title: 'Payment Failed',
-        description: error.message || 'Failed to initiate payment',
-        variant: 'destructive',
-      });
+      toast({ title: 'Payment Failed', description: error.message || 'Failed to initiate payment', variant: 'destructive' });
       setProcessing(false);
     }
   };
 
   const pollPaymentStatus = async (paymentId: string) => {
-    //  FIX: poll every 3 seconds for up to 3 minutes (60 attempts)
-    // Safaricom sandbox callbacks can take 60-90 seconds
     const maxAttempts = 60;
     const intervalMs  = 3000;
     let attempts      = 0;
@@ -179,11 +185,8 @@ export default function PaymentPage() {
             clearInterval(interval);
             setPaymentStatus('success');
             setProcessing(false);
-            toast({
-              title: ' Payment Successful!',
-              description: 'Funds are held securely. Your designer can now start work.',
-            });
-            setTimeout(() => navigate('/client/dashboard'), 2000);
+            toast({ title: '✅ Payment Successful!', description: 'Funds are held securely. Your designer can now start work.' });
+            setTimeout(() => navigate('/dashboard/client'), 2000);
             return;
           }
 
@@ -191,24 +194,15 @@ export default function PaymentPage() {
             clearInterval(interval);
             setPaymentStatus('failed');
             setProcessing(false);
-            toast({
-              title: 'Payment Failed',
-              description: 'Please try again.',
-              variant: 'destructive',
-            });
+            toast({ title: 'Payment Failed', description: 'Please try again.', variant: 'destructive' });
             return;
           }
         }
 
-        // Reassure user at 30 seconds
         if (attempts === 10) {
-          toast({
-            title: '⏳ Still waiting...',
-            description: "Please complete the M-Pesa prompt on your phone if you haven't yet.",
-          });
+          toast({ title: '⏳ Still waiting...', description: "Please complete the M-Pesa prompt on your phone if you haven't yet." });
         }
 
-        //  Timeout resets to idle not failed — payment may still arrive via callback
         if (attempts >= maxAttempts) {
           clearInterval(interval);
           setPaymentStatus('idle');
@@ -242,7 +236,23 @@ export default function PaymentPage() {
       <Layout>
         <div className="container mx-auto py-20 text-center">
           <h1 className="text-2xl font-bold mb-4">Project Not Found</h1>
-          <Button onClick={() => navigate('/client/dashboard')}>Go to Dashboard</Button>
+          <Button onClick={() => navigate('/dashboard/client')}>Go to Dashboard</Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  // ── No accepted proposal found ───────────────────────────────────────────
+  if (!proposal) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-20 text-center">
+          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">No Accepted Proposal</h1>
+          <p className="text-muted-foreground mb-6">
+            Accept a designer's proposal before making a payment.
+          </p>
+          <Button onClick={() => navigate('/dashboard/client')}>Go to Dashboard</Button>
         </div>
       </Layout>
     );
@@ -262,7 +272,7 @@ export default function PaymentPage() {
               Payment for <strong>{project.title}</strong> has already been completed.
               Your designer is {project.status === 'in_progress' ? 'currently working on it' : 'done'}.
             </p>
-            <Button onClick={() => navigate('/client/dashboard')} className="w-full">
+            <Button onClick={() => navigate('/dashboard/client')} className="w-full">
               Go to Dashboard
             </Button>
           </div>
@@ -287,7 +297,7 @@ export default function PaymentPage() {
             <p className="text-sm text-muted-foreground mb-6">
               Funds will be released to your designer once you approve the completed work.
             </p>
-            <Button onClick={() => navigate('/client/dashboard')} className="w-full">
+            <Button onClick={() => navigate('/dashboard/client')} className="w-full">
               Go to Dashboard
             </Button>
           </div>
@@ -303,11 +313,7 @@ export default function PaymentPage() {
         <div className="container mx-auto px-4 max-w-4xl">
 
           {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
               <Lock className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold text-primary">Secure Escrow Payment</span>
@@ -322,9 +328,7 @@ export default function PaymentPage() {
 
             {/* ── Left: Payment Form ── */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
+              initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}
               className="md:col-span-2"
             >
               <Card className="p-6 md:p-8">
@@ -340,23 +344,20 @@ export default function PaymentPage() {
 
                 <div className="space-y-6">
 
-                  {/* Amount */}
+                  {/* Amount — read only, sourced from proposal */}
                   <div>
-                    <Label htmlFor="amount">Payment Amount (KSh)</Label>
+                    <Label>Designer Fee (KSh)</Label>
                     <div className="relative mt-2">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                       <Input
-                        id="amount"
-                        type="number"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="pl-10 h-12 text-lg"
-                        placeholder="Enter amount"
-                        disabled={processing}
+                        type="text"
+                        value={`KSh ${designerFee.toLocaleString()}`}
+                        readOnly
+                        className="pl-10 h-12 text-lg bg-muted cursor-not-allowed font-semibold"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Agreed project budget: KSh {project.budget.toLocaleString()}
+                      This is the fee agreed with your designer. Your project renovation budget (KSh {project.budget.toLocaleString()}) is paid separately.
                     </p>
                   </div>
 
@@ -400,64 +401,44 @@ export default function PaymentPage() {
                   {/* Submit */}
                   <Button
                     onClick={handlePayment}
-                    disabled={processing || !agreedToTerms || totalAmount <= 0}
+                    disabled={processing || !agreedToTerms || designerFee <= 0}
                     className="w-full h-12 text-base"
                     size="lg"
                   >
                     {processing ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Processing...
-                      </>
+                      <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Processing...</>
                     ) : (
-                      <>
-                        Pay KSh {totalAmount.toLocaleString()}
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                      </>
+                      <>Pay KSh {designerFee.toLocaleString()} <ArrowRight className="w-5 h-5 ml-2" /></>
                     )}
                   </Button>
 
-                  {/* Status alerts */}
                   {paymentStatus === 'pending' && (
                     <Alert>
                       <Smartphone className="w-4 h-4" />
                       <AlertDescription>
                         <p className="font-medium mb-1">Waiting for M-Pesa confirmation...</p>
-                        <p className="text-xs text-muted-foreground">
-                          Check your phone and enter your PIN. This can take up to 2 minutes on sandbox.
-                        </p>
+                        <p className="text-xs text-muted-foreground">Check your phone and enter your PIN. This can take up to 2 minutes.</p>
                       </AlertDescription>
                     </Alert>
                   )}
-
                   {paymentStatus === 'success' && (
                     <Alert className="border-green-500 bg-green-50">
                       <CheckCircle className="w-4 h-4 text-green-600" />
-                      <AlertDescription className="text-green-800">
-                        Payment successful! Redirecting to dashboard...
-                      </AlertDescription>
+                      <AlertDescription className="text-green-800">Payment successful! Redirecting to dashboard...</AlertDescription>
                     </Alert>
                   )}
-
                   {paymentStatus === 'failed' && (
                     <Alert variant="destructive">
                       <AlertCircle className="w-4 h-4" />
-                      <AlertDescription>
-                        Payment failed. Please check your M-Pesa balance and try again.
-                      </AlertDescription>
+                      <AlertDescription>Payment failed. Please check your M-Pesa balance and try again.</AlertDescription>
                     </Alert>
                   )}
-
-                  {/* ✅ Idle after timeout — not a failure, just slow */}
-                  {paymentStatus === 'idle' && !processing && amount && (
+                  {paymentStatus === 'idle' && !processing && designerFee > 0 && (
                     <Alert className="border-amber-300 bg-amber-50">
                       <AlertCircle className="w-4 h-4 text-amber-600" />
                       <AlertDescription className="text-amber-800">
                         <p className="font-medium mb-1">Payment still processing</p>
-                        <p className="text-xs">
-                          If you completed the M-Pesa prompt, your payment is likely still being confirmed.
-                          Check your dashboard in a few minutes or try again below.
-                        </p>
+                        <p className="text-xs">If you completed the M-Pesa prompt, your payment is likely still being confirmed. Check your dashboard in a few minutes.</p>
                       </AlertDescription>
                     </Alert>
                   )}
@@ -467,9 +448,7 @@ export default function PaymentPage() {
 
             {/* ── Right: Summary & Info ── */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
               className="space-y-6"
             >
               {/* Payment Summary */}
@@ -477,18 +456,27 @@ export default function PaymentPage() {
                 <h3 className="font-bold mb-4">Payment Summary</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Project Amount</span>
-                    <span className="font-semibold">KSh {totalAmount.toLocaleString()}</span>
+                    <span className="text-muted-foreground">Designer Fee</span>
+                    <span className="font-semibold">KSh {designerFee.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Platform Fee (10%)</span>
-                    <span className="font-semibold text-muted-foreground">- KSh {platformFee.toLocaleString()}</span>
+                    <span className="font-semibold text-muted-foreground">KSh {platformFee.toLocaleString()}</span>
                   </div>
                   <div className="h-px bg-border" />
                   <div className="flex justify-between">
                     <span className="font-semibold">Designer Receives</span>
-                    <span className="font-bold text-primary">KSh {designerAmount.toLocaleString()}</span>
+                    <span className="font-bold text-primary">KSh {designerGets.toLocaleString()}</span>
                   </div>
+                  <div className="h-px bg-border" />
+                  {/* Show project budget separately for clarity */}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Project Budget</span>
+                    <span className="text-muted-foreground">KSh {project.budget.toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Project budget is paid directly to contractors — not through this platform.
+                  </p>
                 </div>
               </Card>
 
@@ -500,7 +488,7 @@ export default function PaymentPage() {
                 </div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   {[
-                    'Payment held securely until you approve the work',
+                    'Designer fee held securely until you approve the work',
                     'Designer only gets paid after your approval',
                     'Full refund available if work is not completed',
                   ].map((item) => (
@@ -516,36 +504,33 @@ export default function PaymentPage() {
               <Card className="p-6">
                 <h3 className="font-bold mb-3">Your Designer</h3>
                 <div className="flex items-center gap-3">
-                  {project.designer.avatar ? (
+                  {proposal.designer?.avatar ? (
                     <img
-                      src={project.designer.avatar}
-                      alt={project.designer.name}
+                      src={proposal.designer.avatar}
+                      alt={proposal.designer.name}
                       className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
                     />
                   ) : (
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-primary/20">
                       <span className="text-xl font-bold text-primary">
-                        {project.designer.name[0]}
+                        {proposal.designer?.name?.[0] ?? '?'}
                       </span>
                     </div>
                   )}
                   <div>
-                    <p className="font-semibold">{project.designer.name}</p>
-                    <p className="text-xs text-muted-foreground">Ready to start once paid</p>
+                    <p className="font-semibold">{proposal.designer?.name}</p>
+                    <p className="text-xs text-muted-foreground">Timeline: {proposal.timeline}</p>
                   </div>
                 </div>
               </Card>
 
-              {/* Processing indicator */}
               {processing && (
                 <Card className="p-4 border-primary/20 bg-primary/5">
                   <div className="flex items-center gap-3">
                     <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
                     <div>
                       <p className="text-sm font-semibold">Waiting for confirmation</p>
-                      <p className="text-xs text-muted-foreground">
-                        Sandbox can take 1-2 minutes
-                      </p>
+                      <p className="text-xs text-muted-foreground">This can take 1-2 minutes</p>
                     </div>
                   </div>
                 </Card>
