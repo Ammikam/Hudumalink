@@ -134,9 +134,6 @@ export default function InvitesPage() {
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
-              <Users className="w-6 h-6 text-white" />
-            </div>
             <div>
               <h1 className="font-display text-4xl font-bold">Project Invites</h1>
               <p className="text-muted-foreground text-lg">
