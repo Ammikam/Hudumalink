@@ -27,14 +27,14 @@ export default function SuccessPage() {
         >
           <Card className="p-8 sm:p-12 text-center shadow-xl">
             {/* Success Icon */}
-            <motion.div
+            {/* <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500 mb-6"
             >
               <CheckCircle2 className="w-12 h-12 text-white" />
-            </motion.div>
+            </motion.div> */}
 
             {/* Message */}
             <motion.div
