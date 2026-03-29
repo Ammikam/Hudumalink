@@ -17,6 +17,7 @@ interface InspirationDetailModalProps {
   canDelete?: boolean;
   onDeleted?: () => void;
 }
+
 interface InspirationDetail {
   _id: string;
   title: string;
@@ -71,7 +72,6 @@ export function InspirationDetailModal({
 
   const formatCurrency = (amount: number) => `KSh ${amount.toLocaleString()}`;
 
-  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -87,7 +87,7 @@ export function InspirationDetailModal({
 
   return (
     <AnimatePresence>
-      {/* ── Backdrop ── */}
+      {/* Backdrop */}
       <motion.div
         key="backdrop"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -95,48 +95,50 @@ export function InspirationDetailModal({
         onClick={onClose}
       />
 
-      {/* ── Modal: bottom-sheet on mobile, centered on lg ── */}
-      <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-4 pointer-events-none">
+      {/* ── Modal ── */}
+      <div className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-6 pointer-events-none">
         <motion.div
           key="modal"
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 280 }}
-          className="pointer-events-auto w-full lg:max-w-5xl xl:max-w-6xl bg-background rounded-t-3xl lg:rounded-2xl shadow-2xl flex flex-col"
-          style={{ maxHeight: 'calc(92vh - env(safe-area-inset-bottom))' }}
+          className="pointer-events-auto w-full lg:max-w-5xl bg-background rounded-t-3xl lg:rounded-2xl shadow-2xl overflow-hidden"
+          // Fixed height on desktop so nothing gets cut off
+          style={{ height: 'min(92vh, 680px)' }}
           onClick={e => e.stopPropagation()}
         >
-          {/* Mobile drag handle */}
-          <div className="flex justify-center pt-3 pb-1 lg:hidden flex-shrink-0">
-            <div className="w-10 h-1.5 bg-muted-foreground/20 rounded-full" />
-          </div>
-
-          {/* Close button */}
+          {/* Close button — always visible, top right */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm text-white flex items-center justify-center transition"
+            className="absolute top-3 right-3 z-30 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white flex items-center justify-center transition"
           >
             <X className="w-4 h-4" />
           </button>
 
-          {/* ── Stacked on mobile / two-col on lg ── */}
-          <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-2 overflow-hidden">
+          {/* Mobile drag handle */}
+          <div className="flex justify-center pt-3 pb-1 lg:hidden">
+            <div className="w-10 h-1.5 bg-muted-foreground/20 rounded-full" />
+          </div>
 
-            {/* ── Left: Image ── */}
-            <div className="relative bg-muted h-56 sm:h-72 lg:h-full flex-shrink-0">
+          {/* ── Layout: stacked mobile / two-col desktop ── */}
+          <div className="flex flex-col lg:flex-row h-full">
+
+            {/* ── Left: Image (fixed height mobile, full height desktop) ── */}
+            <div className="relative bg-muted flex-shrink-0
+              h-52 sm:h-64          /* mobile: fixed height so content shows below */
+              lg:w-[52%] lg:h-full  /* desktop: half width, full height */
+            ">
               <BeforeAfterSlider
                 beforeImage={inspiration.beforeImage}
                 afterImage={inspiration.afterImage}
                 className="w-full h-full"
               />
 
-              {/* Overlay labels + full view */}
+              {/* Before/After labels + Full View */}
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                 <div className="flex gap-1.5">
-                  <Badge className="bg-black/60 backdrop-blur-sm text-white border-white/20 text-xs">
-                    Before
-                  </Badge>
+                  <Badge className="bg-black/60 backdrop-blur-sm text-white border-white/20 text-xs">Before</Badge>
                   <Badge className="bg-primary text-xs">After</Badge>
                 </div>
                 <button
@@ -148,18 +150,18 @@ export function InspirationDetailModal({
               </div>
             </div>
 
-            {/* ── Right: Details ── */}
-            <div className="flex flex-col min-h-0 flex-1 lg:flex-none lg:h-full">
+            {/* ── Right: Details + CTA (scrollable content, sticky footer) ── */}
+            <div className="flex flex-col flex-1 min-h-0">
 
-              {/* ✅ Scrollable content */}
-              <div className="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6 lg:p-8 space-y-5">
+              {/* Scrollable content */}
+              <div className="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6 space-y-4">
 
-                {/* Title + styles */}
+                {/* Title + badges */}
                 <div>
-                  <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold mb-2 leading-tight">
+                  <h1 className="font-display text-xl sm:text-2xl font-bold mb-2 leading-tight pr-8">
                     {inspiration.title}
                   </h1>
-                  <div className="flex flex-wrap gap-1.5 mb-3">
+                  <div className="flex flex-wrap gap-1.5 mb-2">
                     {inspiration.styles.map(style => (
                       <Badge key={style} variant="secondary" className="text-xs">{style}</Badge>
                     ))}
@@ -180,11 +182,11 @@ export function InspirationDetailModal({
                   </p>
                 </div>
 
-                {/* Project details */}
+                {/* Location + Budget */}
                 {(inspiration.location || inspiration.projectCost) && (
                   <div className="grid grid-cols-2 gap-3">
                     {inspiration.location && (
-                      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10">
+                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
                         <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
                           <MapPin className="w-3.5 h-3.5" />
                           <span className="text-xs font-medium">Location</span>
@@ -193,7 +195,7 @@ export function InspirationDetailModal({
                       </div>
                     )}
                     {inspiration.projectCost && (
-                      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10">
+                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
                         <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
                           <DollarSign className="w-3.5 h-3.5" />
                           <span className="text-xs font-medium">Project Budget</span>
@@ -206,11 +208,11 @@ export function InspirationDetailModal({
                   </div>
                 )}
 
-                {/* Designer */}
+                {/* Designer card */}
                 <div className="p-4 rounded-2xl bg-muted/40 border border-border/60">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Designer</p>
                   <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12 ring-2 ring-border flex-shrink-0">
+                    <Avatar className="w-11 h-11 ring-2 ring-border flex-shrink-0">
                       <AvatarImage src={inspiration.designerAvatar} />
                       <AvatarFallback className="text-sm bg-gradient-to-br from-primary to-secondary text-white font-bold">
                         {inspiration.designerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -242,16 +244,21 @@ export function InspirationDetailModal({
                 </div>
 
                 {/* Tip */}
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200/60">
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/60">
                   <p className="text-xs text-amber-800">
                     💡 <strong>Tip:</strong> Contact the designer to discuss similar projects or get a custom quote for your space.
                   </p>
                 </div>
               </div>
 
-              {/* ── Sticky CTA footer ── */}
-              <div className="flex-shrink-0 px-5 sm:px-6 lg:px-8 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:pb-4 border-t bg-background flex gap-3">
-                <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none sm:min-w-[100px]">
+              {/* ── Sticky CTA footer — always visible ── */}
+              <div className="flex-shrink-0 px-5 sm:px-6 py-4 border-t bg-background flex gap-2.5"
+                style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
+                <Button
+                  variant="outline"
+                  onClick={onClose}
+                  className="flex-none px-4"
+                >
                   Close
                 </Button>
                 <Button
@@ -260,16 +267,13 @@ export function InspirationDetailModal({
                   className="flex-1 gap-2"
                 >
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">View Profile</span>
-                  <span className="sm:hidden">Profile</span>
+                  <span>View Profile</span>
                 </Button>
                 <Button
                   onClick={() => { navigate(`/designers/${inspiration.designerId}?hire=true`); onClose(); }}
                   className="flex-1 gap-2"
                 >
-                  <Sparkles className="w-4 h-4" />
-                  <span className="hidden sm:inline">Hire Designer</span>
-                  <span className="sm:hidden">Hire</span>
+                  <span>Hire Designer</span>
                 </Button>
               </div>
             </div>
@@ -277,7 +281,7 @@ export function InspirationDetailModal({
         </motion.div>
       </div>
 
-      {/* ── Full image lightbox ── */}
+      {/* Full image lightbox */}
       {showFullImage && (
         <motion.div
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -290,7 +294,6 @@ export function InspirationDetailModal({
           >
             <X className="w-5 h-5 text-white" />
           </button>
-
           <div className="relative max-w-5xl w-full" onClick={e => e.stopPropagation()}>
             <img
               src={currentView === 'before' ? inspiration.beforeImage : inspiration.afterImage}
@@ -303,17 +306,13 @@ export function InspirationDetailModal({
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   currentView === 'before' ? 'bg-white text-black' : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
-              >
-                Before
-              </button>
+              >Before</button>
               <button
                 onClick={e => { e.stopPropagation(); setCurrentView('after'); }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   currentView === 'after' ? 'bg-primary text-white' : 'bg-white/20 text-white hover:bg-white/30'
                 }`}
-              >
-                After
-              </button>
+              >After</button>
             </div>
           </div>
         </motion.div>
