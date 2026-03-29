@@ -18,7 +18,7 @@ import { useToast } from '@/components/ui/use-toast';
 interface Project {
   _id: string;
   title: string;
-  budget: number;       // client's renovation budget — shown for context only, NOT charged
+  budget: number;      
   status: string;
   designer: {
     _id: string;
@@ -29,7 +29,7 @@ interface Project {
 
 interface AcceptedProposal {
   _id: string;
-  price: number;        // designer's quoted fee — this is what the client actually pays
+  price: number;        
   timeline: string;
   designer: {
     _id: string;
@@ -59,12 +59,20 @@ export default function PaymentPage() {
 
   const [phoneNumber, setPhoneNumber]     = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [retryAfter, setRetryAfter]       = useState(0);  
+  const [failedReason, setFailedReason]   = useState(''); 
 
-  // The amount client pays = designer's quoted fee (proposal.price)
-  // project.budget is the renovation budget — paid directly, outside the platform
+
   const designerFee    = proposal?.price ?? 0;
   const platformFee    = Math.round(designerFee * 0.10);
   const designerGets   = designerFee - platformFee;
+
+  // Countdown timer for retry cooldown
+  useEffect(() => {
+    if (retryAfter <= 0) return;
+    const t = setInterval(() => setRetryAfter(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [retryAfter]);
 
   useEffect(() => {
     fetchPageData();
@@ -78,7 +86,7 @@ export default function PaymentPage() {
         fetch(`http://localhost:5000/api/projects/${projectId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        // ✅ Fetch the accepted proposal to get the correct designer fee
+        
         fetch(`http://localhost:5000/api/proposals/project/${projectId}/accepted`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -95,7 +103,7 @@ export default function PaymentPage() {
         setProject(projectData.project);
       }
 
-      // ✅ Use proposal price — not project.budget
+
       if (proposalData.success && proposalData.proposal) {
         setProposal(proposalData.proposal);
       }
@@ -132,6 +140,8 @@ export default function PaymentPage() {
 
     setProcessing(true);
     setPaymentStatus('pending');
+    setFailedReason('');
+    setRetryAfter(0);
 
     try {
       const token = await getToken();
@@ -140,7 +150,7 @@ export default function PaymentPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           projectId,
-          amount: designerFee,   // ✅ Always send the designer's quoted fee
+          amount: designerFee,   
           phoneNumber,
           paymentMethod: 'mpesa',
         }),
@@ -155,10 +165,15 @@ export default function PaymentPage() {
         });
         pollPaymentStatus(data.payment._id);
       } else {
+        
+        if (data.retryAfterSeconds) {
+          setRetryAfter(data.retryAfterSeconds);
+        }
         throw new Error(data.error);
       }
     } catch (error: any) {
       setPaymentStatus('failed');
+      setFailedReason(error.message || 'Failed to initiate payment');
       toast({ title: 'Payment Failed', description: error.message || 'Failed to initiate payment', variant: 'destructive' });
       setProcessing(false);
     }
@@ -185,7 +200,7 @@ export default function PaymentPage() {
             clearInterval(interval);
             setPaymentStatus('success');
             setProcessing(false);
-            toast({ title: '✅ Payment Successful!', description: 'Funds are held securely. Your designer can now start work.' });
+            toast({ title: ' Payment Successful!', description: 'Funds are held securely. Your designer can now start work.' });
             setTimeout(() => navigate('/dashboard/client'), 2000);
             return;
           }
@@ -193,6 +208,7 @@ export default function PaymentPage() {
           if (status === 'failed') {
             clearInterval(interval);
             setPaymentStatus('failed');
+            setFailedReason('Payment was declined. This may be due to insufficient balance, wrong PIN, or the request timed out.');
             setProcessing(false);
             toast({ title: 'Payment Failed', description: 'Please try again.', variant: 'destructive' });
             return;
@@ -401,12 +417,14 @@ export default function PaymentPage() {
                   {/* Submit */}
                   <Button
                     onClick={handlePayment}
-                    disabled={processing || !agreedToTerms || designerFee <= 0}
+                    disabled={processing || !agreedToTerms || designerFee <= 0 || retryAfter > 0}
                     className="w-full h-12 text-base"
                     size="lg"
                   >
                     {processing ? (
                       <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Processing...</>
+                    ) : retryAfter > 0 ? (
+                      <>Retry in {retryAfter}s</>
                     ) : (
                       <>Pay KSh {designerFee.toLocaleString()} <ArrowRight className="w-5 h-5 ml-2" /></>
                     )}
@@ -430,7 +448,15 @@ export default function PaymentPage() {
                   {paymentStatus === 'failed' && (
                     <Alert variant="destructive">
                       <AlertCircle className="w-4 h-4" />
-                      <AlertDescription>Payment failed. Please check your M-Pesa balance and try again.</AlertDescription>
+                      <AlertDescription>
+                        <p className="font-medium mb-1">Payment failed</p>
+                        <p className="text-xs">{failedReason || 'Please check your M-Pesa balance and try again.'}</p>
+                        {retryAfter > 0 && (
+                          <p className="text-xs mt-1 font-medium">
+                            You can retry in {retryAfter} second{retryAfter !== 1 ? 's' : ''}...
+                          </p>
+                        )}
+                      </AlertDescription>
                     </Alert>
                   )}
                   {paymentStatus === 'idle' && !processing && designerFee > 0 && (
