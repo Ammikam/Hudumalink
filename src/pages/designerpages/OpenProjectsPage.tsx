@@ -102,7 +102,7 @@ export default function OpenProjectsPage() {
     }
 
     toast({ 
-      title: '🎉 Proposal Sent!', 
+      title: ' Proposal Sent!', 
       description: 'The client will be notified.' 
     });
 
@@ -129,9 +129,6 @@ export default function OpenProjectsPage() {
         {/* Header */}
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
             <div>
               <h1 className="font-display text-4xl font-bold">Open Projects</h1>
               <p className="text-muted-foreground text-lg">
