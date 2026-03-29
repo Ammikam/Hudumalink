@@ -1,5 +1,5 @@
 // src/pages/BecomeDesignerPage.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Layout } from '@/components/Layout/Layout';
@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
-  Loader2, CheckCircle2, Sparkles, Upload, X, Calendar, AlertCircle,
+  Loader2, CheckCircle2, Sparkles, X, Calendar, AlertCircle,
   Briefcase, Users, TrendingUp, Shield, IdCard, UserPlus, Instagram,
-  Globe, Link2, ChevronDown, ChevronUp
+  Globe, Link2, ChevronDown, ChevronUp, Upload, ImagePlus, Trash2,
+  ArrowRight, ArrowLeft, CheckCircle, Clock, XCircle
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -29,6 +30,130 @@ const BENEFITS = [
   { icon: Briefcase, title: 'Manage Projects', desc: 'Track proposals, projects, and earnings in one place' },
 ];
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface ProjectPair {
+  id: string;
+  before: { file: File | null; url: string; uploading: boolean; preview: string };
+  after:  { file: File | null; url: string; uploading: boolean; preview: string };
+  label: string;
+}
+
+const emptyPair = (id: string, label: string): ProjectPair => ({
+  id,
+  label,
+  before: { file: null, url: '', uploading: false, preview: '' },
+  after:  { file: null, url: '', uploading: false, preview: '' },
+});
+
+// ─── ImageDropZone ────────────────────────────────────────────────────────────
+interface ImageDropZoneProps {
+  label: 'before' | 'after';
+  slot: ProjectPair['before'];
+  onFile: (file: File) => void;
+  onClear: () => void;
+  accent: string;
+}
+
+function ImageDropZone({ label, slot, onFile, onClear, accent }: ImageDropZoneProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) onFile(file);
+  }, [onFile]);
+
+  const colorMap = {
+    before: 'border-amber-300 bg-amber-50/60 dark:bg-amber-950/20',
+    after:  'border-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/20',
+  };
+  const labelMap = {
+    before: { text: 'BEFORE', badge: 'bg-amber-100 text-amber-800 border-amber-300' },
+    after:  { text: 'AFTER',  badge: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span className={cn(
+          'text-xs font-bold px-2 py-0.5 rounded border',
+          labelMap[label].badge
+        )}>
+          {labelMap[label].text}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {label === 'before' ? 'Original space' : 'Transformed result'}
+        </span>
+      </div>
+
+      {slot.preview ? (
+        <div className="relative group rounded-xl overflow-hidden aspect-[4/3] bg-muted border border-border">
+          <img src={slot.preview} alt={label} className="w-full h-full object-cover" />
+          {slot.uploading && (
+            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
+              <Loader2 className="w-6 h-6 text-white animate-spin" />
+              <span className="text-white text-xs font-medium">Uploading…</span>
+            </div>
+          )}
+          {slot.url && !slot.uploading && (
+            <div className="absolute top-2 right-2">
+              <span className="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" /> Uploaded
+              </span>
+            </div>
+          )}
+          {!slot.uploading && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="absolute top-2 left-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          className={cn(
+            'aspect-[4/3] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all',
+            colorMap[label],
+            dragging && 'scale-[1.02] border-solid shadow-lg',
+            'hover:opacity-90'
+          )}
+        >
+          <div className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+            <ImagePlus className="w-5 h-5 text-muted-foreground" />
+          </div>
+          {/* Hide secondary text on very small screens to avoid overflow */}
+          <p className="text-xs font-medium text-muted-foreground text-center px-2">
+            Click or drag & drop
+          </p>
+          <p className="hidden sm:block text-[10px] text-muted-foreground/70">JPG, PNG, WEBP — max 10MB</p>
+        </div>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFile(file);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function BecomeDesignerPage() {
   const navigate = useNavigate();
   const { userId, getToken, isLoaded: isAuthLoaded } = useAuth();
@@ -37,65 +162,123 @@ export default function BecomeDesignerPage() {
 
   const isLoaded = isAuthLoaded && isUserLoaded;
 
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking]       = useState(true);
   const [existingStatus, setExistingStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
   const [showOptional, setShowOptional] = useState(false);
 
+  // Before/after project pairs — minimum 2, up to 4
+  const [projects, setProjects] = useState<ProjectPair[]>([
+    emptyPair('p1', 'Project 1'),
+    emptyPair('p2', 'Project 2'),
+  ]);
+
   const [formData, setFormData] = useState({
-    // Required
     idNumber: '',
     location: '',
     about: '',
     selectedStyles: [] as string[],
     startingPrice: 250000,
     responseTime: 'Within 24 hours',
-    portfolioUrls: ['', '', '', '', ''], // Up to 5 images
-    
-    // References (min 2)
     references: [
       { name: '', email: '', relation: '' },
       { name: '', email: '', relation: '' },
       { name: '', email: '', relation: '' },
     ],
-    
-    // Optional
     calendlyLink: '',
-    socialLinks: {
-      instagram: '',
-      pinterest: '',
-      website: '',
-    },
+    socialLinks: { instagram: '', pinterest: '', website: '' },
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // ── Check existing status ──────────────────────────────────────────────────
   useEffect(() => {
-    const checkStatus = async () => {
+    const check = async () => {
       if (!userId || !isLoaded) return;
-
       try {
         const token = await getToken();
-        const res = await fetch(`http://localhost:5000/api/users/designer-status`, {
+        const res = await fetch('http://localhost:5000/api/users/designer-status', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-
-        if (data.success) {
-          setExistingStatus(data.status);
-          // Don't auto-redirect on approved - let them see the pending screen
-          // if (data.status === 'approved') navigate('/designer/open-projects');
-        }
-      } catch (err) {
-        console.error('Failed to check designer status:', err);
+        if (data.success) setExistingStatus(data.status);
+      } catch {
+        console.error('Status check failed');
       } finally {
         setChecking(false);
       }
     };
-
-    if (isLoaded) checkStatus();
+    if (isLoaded) check();
   }, [userId, isLoaded, getToken]);
 
+  // ── Image upload helper ────────────────────────────────────────────────────
+  const uploadImage = async (file: File, projectId: string, side: 'before' | 'after') => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setProjects(prev => prev.map(p =>
+        p.id !== projectId ? p : {
+          ...p,
+          [side]: { ...p[side], preview: e.target?.result as string, uploading: true },
+        }
+      ));
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      const token = await getToken();
+      const formDataUpload = new FormData();
+      formDataUpload.append('images', file);
+
+      const res = await fetch('http://localhost:5000/api/upload/portfolio-images', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formDataUpload,
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.urls?.[0]) {
+        setProjects(prev => prev.map(p =>
+          p.id !== projectId ? p : {
+            ...p,
+            [side]: { ...p[side], url: data.urls[0], uploading: false, file },
+          }
+        ));
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch {
+      toast({ title: 'Upload failed', description: 'Could not upload image. Try again.', variant: 'destructive' });
+      setProjects(prev => prev.map(p =>
+        p.id !== projectId ? p : {
+          ...p,
+          [side]: { file: null, url: '', uploading: false, preview: '' },
+        }
+      ));
+    }
+  };
+
+  const clearImage = (projectId: string, side: 'before' | 'after') => {
+    setProjects(prev => prev.map(p =>
+      p.id !== projectId ? p : {
+        ...p,
+        [side]: { file: null, url: '', uploading: false, preview: '' },
+      }
+    ));
+  };
+
+  const addProject = () => {
+    if (projects.length >= 4) return;
+    const id = `p${Date.now()}`;
+    setProjects(prev => [...prev, emptyPair(id, `Project ${prev.length + 1}`)]);
+  };
+
+  const removeProject = (id: string) => {
+    if (projects.length <= 2) return;
+    setProjects(prev => prev.filter(p => p.id !== id));
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
   const toggleStyle = (style: string) => {
     setFormData(prev => ({
       ...prev,
@@ -105,124 +288,100 @@ export default function BecomeDesignerPage() {
     }));
   };
 
+  // ── Validation ─────────────────────────────────────────────────────────────
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
+    const e: Record<string, string> = {};
 
-    // ID Number
-    if (!formData.idNumber.trim()) newErrors.idNumber = 'National ID number is required';
-    else if (formData.idNumber.length < 7) newErrors.idNumber = 'Please enter a valid ID number';
+    if (!formData.idNumber.trim()) e.idNumber = 'National ID number is required';
+    else if (formData.idNumber.length < 7) e.idNumber = 'Please enter a valid ID number';
+    if (!formData.location.trim()) e.location = 'Location is required';
+    if (!formData.about.trim()) e.about = 'About section is required';
+    if (formData.about.length < 150) e.about = 'Please write at least 150 characters';
+    if (formData.selectedStyles.length === 0) e.styles = 'Select at least one design style';
+    if (formData.startingPrice < 50000) e.startingPrice = 'Minimum starting price is KSh 50,000';
 
-    // Location & About
-    if (!formData.location.trim()) newErrors.location = 'Location is required';
-    if (!formData.about.trim()) newErrors.about = 'About section is required';
-    if (formData.about.length < 150) newErrors.about = 'Please write at least 150 characters';
+    const completePairs = projects.filter(p => p.before.url && p.after.url);
+    if (completePairs.length < 2) {
+      e.portfolio = 'Upload at least 2 complete project pairs (before & after for each)';
+    }
 
-    // Styles
-    if (formData.selectedStyles.length === 0) newErrors.styles = 'Select at least one design style';
+    const stillUploading = projects.some(p => p.before.uploading || p.after.uploading);
+    if (stillUploading) e.portfolio = 'Please wait for all images to finish uploading';
 
-    // Starting Price
-    if (formData.startingPrice < 50000) newErrors.startingPrice = 'Minimum starting price is KSh 50,000';
-
-    // Portfolio (at least 3 images)
-    const validUrls = formData.portfolioUrls.filter(url => url.trim());
-    if (validUrls.length < 3) newErrors.portfolio = 'At least 3 portfolio image URLs are required';
-
-    // References (at least 2 complete)
-    const validRefs = formData.references.filter(ref =>
-      ref.name.trim() && ref.email.trim() && ref.relation.trim()
-    );
-    if (validRefs.length < 2) newErrors.references = 'At least 2 complete references are required';
-
-    // Validate reference emails
+    const validRefs = formData.references.filter(r => r.name.trim() && r.email.trim() && r.relation.trim());
+    if (validRefs.length < 2) e.references = 'At least 2 complete references are required';
     formData.references.forEach((ref, i) => {
-      if (ref.email && !/\S+@\S+\.\S+/.test(ref.email)) {
-        newErrors[`ref${i}Email`] = 'Invalid email format';
-      }
+      if (ref.email && !/\S+@\S+\.\S+/.test(ref.email)) e[`ref${i}Email`] = 'Invalid email format';
     });
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) {
-      toast({
-        title: 'Form Incomplete',
-        description: 'Please fix the errors and try again',
-        variant: 'destructive',
-      });
+      toast({ title: 'Form incomplete', description: 'Fix the errors highlighted below', variant: 'destructive' });
       return;
     }
 
     setSubmitting(true);
-
     try {
       const token = await getToken();
-      
-      // Prepare data
-      const validRefs = formData.references.filter(ref =>
-        ref.name.trim() && ref.email.trim() && ref.relation.trim()
-      );
-      
-      const validPortfolio = formData.portfolioUrls.filter(url => url.trim());
-      
+
+      const portfolioImages: string[] = [];
+      projects.forEach(p => {
+        if (p.before.url) portfolioImages.push(p.before.url);
+        if (p.after.url)  portfolioImages.push(p.after.url);
+      });
+
+      const validRefs = formData.references.filter(r => r.name.trim() && r.email.trim() && r.relation.trim());
       const socialLinks: any = {};
       if (formData.socialLinks.instagram) socialLinks.instagram = formData.socialLinks.instagram;
       if (formData.socialLinks.pinterest) socialLinks.pinterest = formData.socialLinks.pinterest;
-      if (formData.socialLinks.website) socialLinks.website = formData.socialLinks.website;
+      if (formData.socialLinks.website)   socialLinks.website   = formData.socialLinks.website;
 
       const res = await fetch('http://localhost:5000/api/users/apply-designer', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          idNumber: formData.idNumber.trim(),
-          location: formData.location.trim(),
-          about: formData.about.trim(),
-          styles: formData.selectedStyles,
+          idNumber:      formData.idNumber.trim(),
+          location:      formData.location.trim(),
+          about:         formData.about.trim(),
+          styles:        formData.selectedStyles,
           startingPrice: formData.startingPrice,
-          responseTime: formData.responseTime,
-          portfolioImages: validPortfolio,
-          references: validRefs,
-          calendlyLink: formData.calendlyLink.trim() || undefined,
-          socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : undefined,
+          responseTime:  formData.responseTime,
+          portfolioImages,
+          references:    validRefs,
+          calendlyLink:  formData.calendlyLink.trim() || undefined,
+          socialLinks:   Object.keys(socialLinks).length > 0 ? socialLinks : undefined,
         }),
       });
 
       const data = await res.json();
-
       if (data.success) {
-        toast({
-          title: '✅ Application Submitted!',
-          description: 'We\'ll review your application within 24-48 hours',
-        });
+        toast({ title: '✅ Application submitted!', description: "We'll review within 24-48 hours" });
         navigate('/designer/application-pending');
       } else {
         throw new Error(data.error || 'Application failed');
       }
-    } catch (error: any) {
-      console.error('Application error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to submit application. Please try again.',
-        variant: 'destructive',
-      });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Submission failed. Try again.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Loading/auth states
+  // ── Early-exit states ──────────────────────────────────────────────────────
   if (!isLoaded || checking) {
     return (
       <Layout>
-        <div className="container mx-auto py-32 text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground font-medium">Loading…</p>
+          </div>
         </div>
       </Layout>
     );
@@ -231,18 +390,13 @@ export default function BecomeDesignerPage() {
   if (!userId) {
     return (
       <Layout>
-        <div className="container mx-auto py-32 text-center max-w-2xl px-4">
-          <div className="w-20 h-20 rounded-full bg-muted mx-auto mb-6 flex items-center justify-center">
-            <AlertCircle className="w-10 h-10 text-muted-foreground" />
-          </div>
-          <h1 className="font-display text-4xl font-bold mb-4">Please Sign In</h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            You need to be signed in to apply as a designer.
-          </p>
-          <Button size="lg" onClick={() => navigate('/sign-in')}>
-            Sign In to Continue
-          </Button>
-        </div>
+        <StatusScreen
+          icon={<AlertCircle className="w-10 h-10 text-muted-foreground" />}
+          iconBg="bg-muted"
+          title="Sign in required"
+          description="You need to be signed in to apply as a designer."
+          action={<Button size="lg" onClick={() => navigate('/sign-in')}>Sign in to continue</Button>}
+        />
       </Layout>
     );
   }
@@ -250,18 +404,13 @@ export default function BecomeDesignerPage() {
   if (existingStatus === 'pending') {
     return (
       <Layout>
-        <div className="container mx-auto py-32 text-center max-w-2xl px-4">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-amber-50 border-2 border-amber-200 flex items-center justify-center">
-            <Loader2 className="w-10 h-10 text-amber-600 animate-spin" />
-          </div>
-          <h1 className="font-display text-4xl font-bold mb-4">Application Under Review</h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Your designer application is being reviewed by our team. We'll notify you via email within 24-48 hours.
-          </p>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            Return to Homepage
-          </Button>
-        </div>
+        <StatusScreen
+          icon={<Clock className="w-10 h-10 text-amber-600" />}
+          iconBg="bg-amber-50 border-2 border-amber-200"
+          title="Application under review"
+          description="Your application is being reviewed. We'll notify you via email within 24-48 hours."
+          action={<Button variant="outline" onClick={() => navigate('/')}>Return home</Button>}
+        />
       </Layout>
     );
   }
@@ -269,263 +418,298 @@ export default function BecomeDesignerPage() {
   if (existingStatus === 'rejected') {
     return (
       <Layout>
-        <div className="container mx-auto py-32 text-center max-w-2xl px-4">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-50 border-2 border-red-200 flex items-center justify-center">
-            <X className="w-10 h-10 text-red-600" />
-          </div>
-          <h1 className="font-display text-4xl font-bold mb-4">Application Not Approved</h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Unfortunately, your designer application was not approved at this time. Please contact support for more details.
-          </p>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            Return to Homepage
-          </Button>
-        </div>
+        <StatusScreen
+          icon={<XCircle className="w-10 h-10 text-red-600" />}
+          iconBg="bg-red-50 border-2 border-red-200"
+          title="Application not approved"
+          description="Your application wasn't approved. Please contact support for details."
+          action={<Button variant="outline" onClick={() => navigate('/')}>Return home</Button>}
+        />
       </Layout>
     );
   }
 
-  // Main form
+  // ── Portfolio progress indicator ───────────────────────────────────────────
+  const completePairs   = projects.filter(p => p.before.url && p.after.url).length;
+  const uploadingCount  = projects.filter(p => p.before.uploading || p.after.uploading).length;
+
+  // ── Main render ────────────────────────────────────────────────────────────
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-primary/5 via-background to-background">
-        {/* Hero */}
-        <section className="container mx-auto px-4 lg:px-8 pt-24 pb-16">
+
+        {/* ── Hero ── */}
+        {/* MOBILE: reduced top padding (pt-16 → pt-20 on sm), smaller text sizes */}
+        <section className="container mx-auto px-4 lg:px-8 pt-16 sm:pt-20 lg:pt-24 pb-10 sm:pb-16">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-              <Sparkles className="w-4 h-4" />
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium mb-4 sm:mb-6 ring-1 ring-primary/20">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               Join Kenya's Premier Design Marketplace
             </div>
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+            {/* MOBILE: smaller heading (text-3xl → scales up) */}
+            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
               Become a Verified Designer
             </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            {/* MOBILE: smaller body text */}
+            <p className="text-base sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               Connect with high-value clients, showcase your portfolio, and grow your interior design business on Kenya's most trusted platform.
             </p>
           </div>
         </section>
 
-        {/* Benefits */}
-        <section className="container mx-auto px-4 lg:px-8 pb-16">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+        {/* ── Benefits ── */}
+        {/* MOBILE: 1 col → 2 col on sm → 4 col on lg */}
+        <section className="container mx-auto px-4 lg:px-8 pb-10 sm:pb-16">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 max-w-6xl mx-auto">
             {BENEFITS.map(({ icon: Icon, title, desc }) => (
-              <Card key={title} className="p-6 text-center hover:shadow-xl transition-all duration-300 border-border/50 hover:border-primary/20 group">
-                <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Icon className="w-7 h-7 text-primary" />
+              <Card key={title} className="p-3 sm:p-6 text-center hover:shadow-xl transition-all duration-300 border-border/50 hover:border-primary/20 group">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 mx-auto mb-2 sm:mb-4 rounded-xl sm:rounded-2xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Icon className="w-5 h-5 sm:w-7 sm:h-7 text-primary" />
                 </div>
-                <h3 className="font-bold mb-2 text-base">{title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+                <h3 className="font-bold mb-1 sm:mb-2 text-xs sm:text-base leading-tight">{title}</h3>
+                <p className="hidden sm:block text-xs sm:text-sm text-muted-foreground leading-relaxed">{desc}</p>
               </Card>
             ))}
           </div>
         </section>
 
-        {/* Form */}
-        <section className="container mx-auto px-4 lg:px-8 pb-24">
-          <Card className="max-w-5xl mx-auto p-8 lg:p-12 shadow-xl border-border/50">
-            <div className="mb-10">
-              <h2 className="font-display text-3xl font-bold mb-3">Designer Application</h2>
-              <p className="text-muted-foreground text-lg">
+        {/* ── Form ── */}
+        <section className="container mx-auto px-4 lg:px-8 pb-16 sm:pb-24">
+          {/* MOBILE: reduced padding (p-4 sm:p-8 lg:p-12) */}
+          <Card className="max-w-5xl mx-auto p-4 sm:p-8 lg:p-12 shadow-xl border-border/50">
+            <div className="mb-6 sm:mb-10">
+              <h2 className="font-display text-2xl sm:text-3xl font-bold mb-2 sm:mb-3">Designer Application</h2>
+              <p className="text-muted-foreground text-sm sm:text-lg">
                 Complete all required fields. We verify each application to maintain platform quality.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-10">
-              {/* National ID */}
-              <div className="space-y-3">
-                <Label htmlFor="idNumber" className="text-base flex items-center gap-2">
-                  <IdCard className="w-4 h-4" />
-                  National ID Number *
-                </Label>
+            <form onSubmit={handleSubmit} className="space-y-8 sm:space-y-10">
+
+              {/* ── National ID ── */}
+              <FormSection label="National ID Number *" icon={<IdCard className="w-4 h-4" />} hint="Required for identity verification. Kept confidential." error={errors.idNumber}>
                 <Input
-                  id="idNumber"
                   placeholder="Enter your national ID number"
                   value={formData.idNumber}
                   onChange={e => setFormData({ ...formData, idNumber: e.target.value })}
-                  className={cn('h-12', errors.idNumber && 'border-destructive')}
+                  className={cn('h-11 sm:h-12', errors.idNumber && 'border-destructive')}
                 />
-                {errors.idNumber && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.idNumber}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Required for identity verification. This information is kept confidential.
-                </p>
-              </div>
+              </FormSection>
 
-              {/* Location */}
-              <div className="space-y-3">
-                <Label htmlFor="location" className="text-base">
-                  Primary Location *
-                </Label>
+              {/* ── Location ── */}
+              <FormSection label="Primary Location *" error={errors.location}>
                 <Input
-                  id="location"
                   placeholder="e.g., Westlands, Nairobi"
                   value={formData.location}
                   onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  className={cn('h-12', errors.location && 'border-destructive')}
+                  className={cn('h-11 sm:h-12', errors.location && 'border-destructive')}
                 />
-                {errors.location && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.location}
-                  </p>
-                )}
-              </div>
+              </FormSection>
 
-              {/* About */}
-              <div className="space-y-3">
-                <Label htmlFor="about" className="text-base">
-                  About Your Design Practice *
-                  <span className="text-sm text-muted-foreground font-normal ml-2">
-                    ({formData.about.length}/800 characters, min 150)
-                  </span>
-                </Label>
+              {/* ── About ── */}
+              <FormSection
+                label={`About Your Design Practice * (${formData.about.length}/800 chars, min 150)`}
+                hint="This appears on your public profile. Be specific and authentic."
+                error={errors.about}
+              >
                 <Textarea
-                  id="about"
-                  rows={7}
+                  rows={6}
                   maxLength={800}
-                  placeholder="Share your design philosophy, years of experience, notable projects, unique approach, and what sets you apart from other designers. Be specific and authentic."
+                  placeholder="Share your design philosophy, years of experience, notable projects, unique approach, and what sets you apart..."
                   value={formData.about}
                   onChange={e => setFormData({ ...formData, about: e.target.value })}
                   className={cn('resize-none leading-relaxed', errors.about && 'border-destructive')}
                 />
-                {errors.about && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.about}
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  This appears on your public profile. Write in a way that resonates with potential clients.
-                </p>
-              </div>
+              </FormSection>
 
-              {/* Design Styles */}
-              <div className="space-y-4">
+              {/* ── Design Styles ── */}
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <Label className="text-base">Design Styles You Specialize In *</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Select all that apply (helps clients find you)
-                  </p>
+                  <Label className="text-sm sm:text-base font-semibold">Design Styles You Specialize In *</Label>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">Select all that apply</p>
                 </div>
-                {errors.styles && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.styles}
-                  </p>
-                )}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {errors.styles && <ErrorText>{errors.styles}</ErrorText>}
+                {/* MOBILE: 2 cols always, 3 on md, 4 on lg */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                   {DESIGN_STYLES.map(style => {
-                    const isSelected = formData.selectedStyles.includes(style);
+                    const selected = formData.selectedStyles.includes(style);
                     return (
                       <div
                         key={style}
                         onClick={() => toggleStyle(style)}
                         className={cn(
-                          'flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all',
-                          isSelected
+                          'flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl border-2 cursor-pointer transition-all select-none',
+                          selected
                             ? 'border-primary bg-primary/10 shadow-sm'
                             : 'border-border hover:border-primary/40 hover:bg-accent/5'
                         )}
                       >
                         <div className={cn(
-                          "w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors",
-                          isSelected ? "bg-primary border-primary" : "border-input"
+                          'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
+                          selected ? 'bg-primary border-primary' : 'border-input'
                         )}>
-                          {isSelected && (
+                          {selected && (
                             <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                              <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M10 3L4.5 8.5L2 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           )}
                         </div>
-                        <span className="text-sm font-medium">{style}</span>
+                        <span className="text-xs sm:text-sm font-medium">{style}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Portfolio Images */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-base flex items-center gap-2">
-                    <Upload className="w-4 h-4" />
-                    Portfolio Image URLs * (Minimum 3, Up to 5)
-                  </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Upload your best work to Imgur, Google Drive (public link), or Instagram
-                  </p>
+              {/* ── Portfolio: Before & After ── */}
+              <div className="space-y-4 sm:space-y-6">
+                {/* MOBILE: stack label and badge vertically on small screens */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div>
+                    <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      Portfolio Projects * — Before &amp; After
+                    </Label>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      Upload real before &amp; after photos for at least 2 projects. Both images required per project.
+                    </p>
+                  </div>
+                  {/* Progress badge — full width on mobile, auto on sm+ */}
+                  <div className={cn(
+                    'self-start sm:shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold',
+                    completePairs >= 2
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-100 text-amber-700 border border-amber-200'
+                  )}>
+                    {completePairs >= 2
+                      ? <CheckCircle className="w-3.5 h-3.5" />
+                      : <Clock className="w-3.5 h-3.5" />}
+                    {completePairs}/2 minimum
+                  </div>
                 </div>
-                {errors.portfolio && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.portfolio}
-                  </p>
+
+                {errors.portfolio && <ErrorText>{errors.portfolio}</ErrorText>}
+
+                {uploadingCount > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-primary bg-primary/5 border border-primary/20 px-4 py-2.5 rounded-lg">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Uploading {uploadingCount} image{uploadingCount > 1 ? 's' : ''}…
+                  </div>
                 )}
-                <div className="space-y-3">
-                  {formData.portfolioUrls.map((url, i) => (
-                    <div key={i} className="relative">
-                      <Input
-                        placeholder={`Portfolio image ${i + 1} URL ${i < 3 ? '(required)' : '(optional)'}`}
-                        value={url}
-                        onChange={e => {
-                          const urls = [...formData.portfolioUrls];
-                          urls[i] = e.target.value;
-                          setFormData({ ...formData, portfolioUrls: urls });
-                        }}
-                        className="h-11 pr-10"
-                      />
-                      {url && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const urls = [...formData.portfolioUrls];
-                            urls[i] = '';
-                            setFormData({ ...formData, portfolioUrls: urls });
-                          }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
+
+                <div className="space-y-4 sm:space-y-6">
+                  {projects.map((project, idx) => (
+                    <div key={project.id} className="rounded-2xl border-2 border-border/60 bg-muted/20 overflow-hidden">
+                      {/* Project header */}
+                      <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border/50 bg-background/60">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className={cn(
+                            'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
+                            project.before.url && project.after.url
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-muted text-muted-foreground'
+                          )}>
+                            {project.before.url && project.after.url
+                              ? <CheckCircle className="w-4 h-4" />
+                              : idx + 1}
+                          </div>
+                          <span className="font-semibold text-sm">{project.label}</span>
+                          {idx < 2 && (
+                            <span className="text-[10px] font-medium px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                              Required
+                            </span>
+                          )}
+                        </div>
+                        {projects.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => removeProject(project.id)}
+                            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Before / After grid */}
+                      {/* MOBILE: stack before/after vertically, side-by-side from sm+ */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 p-4 sm:p-5">
+                        <ImageDropZone
+                          label="before"
+                          slot={project.before}
+                          onFile={(file) => uploadImage(file, project.id, 'before')}
+                          onClear={() => clearImage(project.id, 'before')}
+                          accent="amber"
+                        />
+                        {/* MOBILE: show a small arrow between stacked images */}
+                        <div className="flex sm:hidden items-center justify-center gap-2 text-xs text-muted-foreground -my-1">
+                          <div className="h-px flex-1 bg-border" />
+                          <span className="flex items-center gap-1 opacity-50">
+                            <ArrowRight className="w-3 h-3" /> transformation
+                          </span>
+                          <div className="h-px flex-1 bg-border" />
+                        </div>
+                        <ImageDropZone
+                          label="after"
+                          slot={project.after}
+                          onFile={(file) => uploadImage(file, project.id, 'after')}
+                          onClear={() => clearImage(project.id, 'after')}
+                          accent="emerald"
+                        />
+                      </div>
+
+                      {/* Arrow connector visual — desktop only */}
+                      <div className="hidden sm:flex items-center justify-center pb-2 gap-3 text-xs text-muted-foreground">
+                        <ArrowLeft className="w-3 h-3 opacity-40" />
+                        <span className="opacity-50">transformation</span>
+                        <ArrowRight className="w-3 h-3 opacity-40" />
+                      </div>
                     </div>
                   ))}
                 </div>
+
+                {/* Add project button */}
+                {projects.length < 4 && (
+                  <button
+                    type="button"
+                    onClick={addProject}
+                    className="w-full py-3 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all text-sm font-medium flex items-center justify-center gap-2"
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    Add another project (optional, up to 4)
+                  </button>
+                )}
+
                 <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                  💡 <strong>Tip:</strong> Use high-quality before/after images. Images showing your actual work perform best. Avoid stock photos.
+                  💡 <strong>Tip:</strong> Use high-quality, genuine project photos. Before/after pairs showing clear transformations make the strongest impression. Avoid stock images — they'll be flagged.
                 </p>
               </div>
 
-              {/* Professional References */}
-              <div className="space-y-4">
+              {/* ── References ── */}
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <Label className="text-base flex items-center gap-2">
+                  <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
                     <UserPlus className="w-4 h-4" />
                     Professional References * (Minimum 2)
                   </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                     Previous clients, colleagues, or mentors who can vouch for your work
                   </p>
                 </div>
-                {errors.references && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {errors.references}
-                  </p>
-                )}
-                <div className="space-y-6">
+                {errors.references && <ErrorText>{errors.references}</ErrorText>}
+                <div className="space-y-3 sm:space-y-4">
                   {formData.references.map((ref, i) => (
-                    <Card key={i} className="p-5 bg-muted/30 border-dashed">
-                      <h4 className="font-semibold mb-4 text-sm text-muted-foreground">Reference {i + 1} {i < 2 && '(required)'}</h4>
-                      <div className="grid md:grid-cols-3 gap-4">
+                    <Card key={i} className="p-4 sm:p-5 bg-muted/30 border-dashed">
+                      <h4 className="font-semibold mb-3 sm:mb-4 text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                        Reference {i + 1}
+                        {i < 2 && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">Required</span>}
+                      </h4>
+                      {/* MOBILE: 1 col → 3 col on md */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor={`ref${i}Name`} className="text-sm">Full Name</Label>
+                          <Label className="text-xs sm:text-sm">Full Name</Label>
                           <Input
-                            id={`ref${i}Name`}
-                            placeholder="John Doe"
+                            placeholder="Mark Otieno"
                             value={ref.name}
                             onChange={e => {
                               const refs = [...formData.references];
@@ -536,11 +720,10 @@ export default function BecomeDesignerPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor={`ref${i}Email`} className="text-sm">Email Address</Label>
+                          <Label className="text-xs sm:text-sm">Email Address</Label>
                           <Input
-                            id={`ref${i}Email`}
                             type="email"
-                            placeholder="john@example.com"
+                            placeholder="mark@example.com"
                             value={ref.email}
                             onChange={e => {
                               const refs = [...formData.references];
@@ -554,9 +737,8 @@ export default function BecomeDesignerPage() {
                           )}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor={`ref${i}Relation`} className="text-sm">Relationship</Label>
+                          <Label className="text-xs sm:text-sm">Relationship</Label>
                           <Input
-                            id={`ref${i}Relation`}
                             placeholder="e.g., Former Client"
                             value={ref.relation}
                             onChange={e => {
@@ -573,168 +755,112 @@ export default function BecomeDesignerPage() {
                 </div>
               </div>
 
-              {/* Pricing & Response */}
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <Label htmlFor="price" className="text-base">
-                    Starting Price (KSh) *
-                  </Label>
+              {/* ── Pricing & Response ── */}
+              {/* MOBILE: stack to 1 col, side-by-side from md */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <FormSection label="Starting Price (KSh) *" hint="Minimum budget you'll accept" error={errors.startingPrice}>
                   <Input
-                    id="price"
                     type="number"
                     min="50000"
                     step="10000"
                     value={formData.startingPrice}
                     onChange={e => setFormData({ ...formData, startingPrice: parseInt(e.target.value) || 0 })}
-                    className={cn('h-12', errors.startingPrice && 'border-destructive')}
+                    className={cn('h-11 sm:h-12', errors.startingPrice && 'border-destructive')}
                   />
-                  {errors.startingPrice && (
-                    <p className="text-sm text-destructive flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      {errors.startingPrice}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Minimum budget you're willing to accept for projects
-                  </p>
-                </div>
+                </FormSection>
 
-                <div className="space-y-3">
-                  <Label htmlFor="response" className="text-base">
-                    Typical Response Time *
-                  </Label>
+                <FormSection label="Typical Response Time *" hint="How quickly you respond to new inquiries">
                   <select
-                    id="response"
                     value={formData.responseTime}
                     onChange={e => setFormData({ ...formData, responseTime: e.target.value })}
-                    className="w-full h-12 px-4 rounded-lg border bg-background text-foreground"
+                    className="w-full h-11 sm:h-12 px-4 rounded-lg border bg-background text-foreground text-sm"
                   >
-                    <option value="Within 1 hour">Within 1 hour</option>
-                    <option value="Within 3 hours">Within 3 hours</option>
-                    <option value="Within 24 hours">Within 24 hours</option>
-                    <option value="1-2 days">1-2 days</option>
-                    <option value="2-3 days">2-3 days</option>
+                    <option>Within 1 hour</option>
+                    <option>Within 3 hours</option>
+                    <option>Within 24 hours</option>
+                    <option>1-2 days</option>
+                    <option>2-3 days</option>
                   </select>
-                  <p className="text-xs text-muted-foreground">
-                    How quickly you typically respond to new inquiries
-                  </p>
-                </div>
+                </FormSection>
               </div>
 
-              {/* Optional Fields - Collapsible */}
-              <div className="border-t pt-8">
+              {/* ── Optional (collapsible) ── */}
+              <div className="border-t pt-6 sm:pt-8">
                 <button
                   type="button"
                   onClick={() => setShowOptional(!showOptional)}
-                  className="flex items-center gap-2 text-lg font-semibold mb-4 hover:text-primary transition"
+                  className="flex items-center gap-2 text-base sm:text-lg font-semibold mb-3 sm:mb-4 hover:text-primary transition group w-full text-left"
                 >
-                  {showOptional ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  Optional Fields (Recommended)
+                  {showOptional
+                    ? <ChevronUp className="w-5 h-5 group-hover:text-primary shrink-0" />
+                    : <ChevronDown className="w-5 h-5 group-hover:text-primary shrink-0" />}
+                  Optional Fields
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground">(recommended)</span>
                 </button>
 
                 {showOptional && (
-                  <div className="space-y-6 pl-7">
-                    {/* Calendly */}
-                    <div className="space-y-3">
-                      <Label htmlFor="calendly" className="text-base flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Calendly Link
-                      </Label>
+                  <div className="space-y-5 sm:space-y-6 pl-0 sm:pl-7 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <FormSection label="Calendly Link" icon={<Calendar className="w-4 h-4" />} hint="Allow clients to book consultations directly">
                       <Input
-                        id="calendly"
                         type="url"
                         placeholder="https://calendly.com/yourname"
                         value={formData.calendlyLink}
                         onChange={e => setFormData({ ...formData, calendlyLink: e.target.value })}
-                        className="h-11"
+                        className="h-10 sm:h-11"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Allow clients to book consultations directly
-                      </p>
-                    </div>
+                    </FormSection>
 
-                    {/* Social Links */}
-                    <div className="space-y-4">
-                      <Label className="text-base">Social Links</Label>
-                      <div className="grid md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="instagram" className="text-sm flex items-center gap-2">
-                            <Instagram className="w-3.5 h-3.5" />
-                            Instagram
-                          </Label>
-                          <Input
-                            id="instagram"
-                            placeholder="https://instagram.com/..."
-                            value={formData.socialLinks.instagram}
-                            onChange={e => setFormData({
-                              ...formData,
-                              socialLinks: { ...formData.socialLinks, instagram: e.target.value }
-                            })}
-                            className="h-10"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="pinterest" className="text-sm flex items-center gap-2">
-                            <Link2 className="w-3.5 h-3.5" />
-                            Pinterest
-                          </Label>
-                          <Input
-                            id="pinterest"
-                            placeholder="https://pinterest.com/..."
-                            value={formData.socialLinks.pinterest}
-                            onChange={e => setFormData({
-                              ...formData,
-                              socialLinks: { ...formData.socialLinks, pinterest: e.target.value }
-                            })}
-                            className="h-10"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="website" className="text-sm flex items-center gap-2">
-                            <Globe className="w-3.5 h-3.5" />
-                            Website
-                          </Label>
-                          <Input
-                            id="website"
-                            placeholder="https://yoursite.com"
-                            value={formData.socialLinks.website}
-                            onChange={e => setFormData({
-                              ...formData,
-                              socialLinks: { ...formData.socialLinks, website: e.target.value }
-                            })}
-                            className="h-10"
-                          />
-                        </div>
+                    <div className="space-y-3">
+                      <Label className="text-sm sm:text-base font-semibold">Social Links</Label>
+                      {/* MOBILE: 1 col → 3 col on md */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                        {([
+                          { key: 'instagram', icon: Instagram, placeholder: 'https://instagram.com/…', label: 'Instagram' },
+                          { key: 'pinterest', icon: Link2,     placeholder: 'https://pinterest.com/…', label: 'Pinterest' },
+                          { key: 'website',   icon: Globe,     placeholder: 'https://yoursite.com',   label: 'Website' },
+                        ] as const).map(({ key, icon: Icon, placeholder, label }) => (
+                          <div key={key} className="space-y-2">
+                            <Label className="text-xs sm:text-sm flex items-center gap-2">
+                              <Icon className="w-3.5 h-3.5" />
+                              {label}
+                            </Label>
+                            <Input
+                              placeholder={placeholder}
+                              value={formData.socialLinks[key]}
+                              onChange={e => setFormData({
+                                ...formData,
+                                socialLinks: { ...formData.socialLinks, [key]: e.target.value },
+                              })}
+                              className="h-10"
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Terms */}
-              <Card className="p-5 bg-muted/40 border-border/50">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  By submitting this application, you agree to Hudumalink's Terms of Service and confirm that all information provided is accurate and truthful. We verify all applications and may contact your references. Applications are typically reviewed within 24-48 hours.
+              {/* ── Terms ── */}
+              <Card className="p-4 sm:p-5 bg-muted/40 border-border/50">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  By submitting, you agree to Hudumalink's Terms of Service and confirm all information is accurate. We verify all applications and may contact your references. Reviews typically take 24-48 hours.
                 </p>
               </Card>
 
-              {/* Submit */}
+              {/* ── Submit ── */}
               <Button
                 type="submit"
                 size="lg"
-                className="w-full h-14 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-                disabled={submitting}
+                className="w-full h-12 sm:h-14 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                disabled={submitting || uploadingCount > 0}
               >
                 {submitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Submitting Application...
-                  </>
+                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Submitting…</>
+                ) : uploadingCount > 0 ? (
+                  <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Waiting for uploads…</>
                 ) : (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 mr-2" />
-                    Submit Designer Application
-                  </>
+                  <><CheckCircle2 className="w-5 h-5 mr-2" />Submit Designer Application</>
                 )}
               </Button>
             </form>
@@ -742,5 +868,54 @@ export default function BecomeDesignerPage() {
         </section>
       </div>
     </Layout>
+  );
+}
+
+// ─── Small reusable components ────────────────────────────────────────────────
+
+function FormSection({
+  label, icon, hint, error, children,
+}: {
+  label: string; icon?: React.ReactNode; hint?: string; error?: string; children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
+        {icon}{label}
+      </Label>
+      {children}
+      {error && <ErrorText>{error}</ErrorText>}
+      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function ErrorText({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs sm:text-sm text-destructive flex items-center gap-1">
+      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+      {children}
+    </p>
+  );
+}
+
+function StatusScreen({
+  icon, iconBg, title, description, action,
+}: {
+  icon: React.ReactNode; iconBg: string; title: string; description: string; action: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-md w-full text-center space-y-5 sm:space-y-6">
+        <div className={cn('w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full flex items-center justify-center', iconBg)}>
+          {icon}
+        </div>
+        <div className="space-y-2 sm:space-y-3">
+          <h1 className="text-2xl sm:text-3xl font-bold">{title}</h1>
+          <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">{description}</p>
+        </div>
+        {action}
+      </div>
+    </div>
   );
 }
