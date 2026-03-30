@@ -32,11 +32,10 @@ export function InspirationTeaser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // ✅ FIX: Use the same endpoint as InspirationPage
+  
   useEffect(() => {
     const fetchInspiration = async () => {
       try {
-        // Use the SAME endpoint that works on InspirationPage
         const res = await fetch('http://localhost:5000/api/inspirations?limit=12');
         const data = await res.json();
 
@@ -121,7 +120,6 @@ export function InspirationTeaser() {
             viewport={{ once: true }}
             className="flex items-center justify-center gap-3 mb-4"
           >
-            <Sparkles className="w-6 h-6 text-secondary" />
             <span className="text-secondary font-semibold uppercase tracking-wider text-sm">
               Real Transformations
             </span>

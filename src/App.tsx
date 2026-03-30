@@ -8,6 +8,7 @@ import { ClerkProvider } from '@clerk/clerk-react';
 import { RoleProvider, BanGate } from '@/contexts/RoleContext';
 import { ProtectedDesignerRoute } from '@/components/auth/ProtectedDesignerRoute';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { ScrollToTop } from '@/components/ScrollToTop';
 
 import HomePage from "./pages/Homepage";
 import InspirationPage from "./pages/InspirationPage";
@@ -17,7 +18,6 @@ import PostProjectPage from "./pages/PostProjectPage";
 import ClientDashboard from "./pages/ClientDashboard";
 import NotFound from "./pages/NotFound";
 import SuccessPage from "./pages/SuccessPage";
-import DesignerDashboard from "./pages/DesignerDashboard";
 import OpenProjectsPage from "@/pages/designerpages/OpenProjectsPage";
 import InvitesPage from "@/pages/designerpages/InvitesPage";
 import ProposalsPage from "@/pages/designerpages/ProposalPage";
@@ -35,6 +35,7 @@ import MyInspirationsPage from "./pages/designerpages/MyInspirationPage";
 import BannedPage from "./pages/BannedPage";
 import SuspendedPage from "./pages/SuspendedPage";
 
+
 const queryClient = new QueryClient();
 const publishableKey = "pk_test_aW5maW5pdGUtZ2liYm9uLTcwLmNsZXJrLmFjY291bnRzLmRldiQ";
 
@@ -45,7 +46,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <RoleProvider>
+          
           <BrowserRouter>
+            <ScrollToTop />
             <BanGate>
             <Routes>
               {/* Public Routes */}
@@ -57,7 +60,7 @@ const App = () => (
               <Route path="/become-designer" element={<BecomeDesignerPage />} />
               <Route path="/designer/application-pending" element={<ApplicationPendingPage />} />
 
-              {/* Account status pages — accessible without full auth so banned/suspended users can see them */}
+              {/* Account status pages accessible without full auth so banned/suspended users can see them */}
               <Route path="/banned" element={<BannedPage />} />
               <Route path="/suspended" element={<SuspendedPage />} />
 
@@ -69,8 +72,7 @@ const App = () => (
               <Route path="/profile" element={<ProtectedRoute><ClientProfilePage /></ProtectedRoute>} />
               <Route path="/success" element={<ProtectedRoute><SuccessPage /></ProtectedRoute>} />
 
-              {/* Legacy */}
-              <Route path="/dashboard/designer" element={<DesignerDashboard />} />
+          
 
               {/* Protected Designer Routes */}
               <Route element={<ProtectedDesignerRoute />}>

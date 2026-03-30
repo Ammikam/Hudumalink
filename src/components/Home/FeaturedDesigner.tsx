@@ -141,7 +141,6 @@ export function FeaturedDesigners() {
               viewport={{ once: true }}
               className="flex items-center gap-3 mb-4"
             >
-              <Sparkles className="w-6 h-6 text-gold" />
               <span className="text-gold font-semibold uppercase tracking-wider text-sm">
                 Top Rated in Kenya
               </span>

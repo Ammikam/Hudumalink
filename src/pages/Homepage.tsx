@@ -310,11 +310,11 @@ export default function HomePage() {
       </section>
 
       {/* ── Quote Calculator ── */}
-      <section className="py-8 lg:py-10 bg-muted/30">
+      {/* <section className="py-8 lg:py-10 bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <QuoteCalculator />
         </div>
-      </section>
+      </section> */}
 
       {/* ── Featured Designers ── */}
       <FeaturedDesigners />
