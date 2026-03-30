@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 const tips = [
   {
     type: 'budget',
-    message: 'Set a realistic budget before contacting a designer — it speeds up the process.',
+    message: 'Set a realistic budget before contacting a designer, it speeds up the process.',
     icon: Wallet,
     color: 'text-primary',
   },
@@ -24,7 +24,7 @@ const tips = [
   },
   {
     type: 'communication',
-    message: 'Be honest about timelines and expectations — great design needs clarity.',
+    message: 'Be honest about timelines and expectations, great design needs clarity.',
     icon: MessageCircle,
     color: 'text-gold',
   },

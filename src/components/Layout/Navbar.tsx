@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sun, Moon, Sparkles, Briefcase, User, ChevronDown, Plus, Images
+  Sparkles, Briefcase, User, ChevronDown, Plus, Images
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useStore } from '../../store/use-store';
@@ -27,7 +27,7 @@ export function Navbar() {
 
   const location = useLocation();
   const { isSignedIn, getToken } = useAuth();
-  const { isDarkMode, toggleDarkMode } = useStore();
+  const { isDarkMode } = useStore();
 
   const isDesignerMode = location.pathname.startsWith('/designer/');
 
@@ -153,16 +153,6 @@ export function Navbar() {
                 </Button>
               </Link>
             )}
-
-            {/* Dark Mode */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleDarkMode}
-              className="hidden lg:flex"
-            >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </Button>
 
             {/* Role Switcher - Desktop only */}
             <SignedIn>
