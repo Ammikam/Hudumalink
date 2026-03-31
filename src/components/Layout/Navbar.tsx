@@ -19,6 +19,7 @@ const designerNavLinks = [
   { href: '/designer/active-projects', label: 'Active Projects' },
   { href: '/designer/my-inspirations', label: 'My Inspirations'},
   { href: '/designer/earnings', label: 'Earnings' },
+  { href: '/designer/profile', label: 'Profile' },
 ];
 
 export function Navbar() {

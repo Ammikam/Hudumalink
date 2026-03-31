@@ -151,13 +151,13 @@ export default function ProjectDetailPage() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         });
         if (releaseRes.ok) {
-          toast({ title: '✅ Project Complete!', description: `KSh ${payment.designerAmount.toLocaleString()} sent to ${project?.designer?.name}. Please leave a review.` });
+          toast({ title: ' Project Complete!', description: `KSh ${payment.designerAmount.toLocaleString()} sent to ${project?.designer?.name}. Please leave a review.` });
           setPayment(prev => prev ? { ...prev, status: 'released' } : null);
         } else {
-          toast({ title: '⚠️ Project Complete — Payment Pending', description: 'Project marked complete but payment release failed. Please contact support.', variant: 'destructive' });
+          toast({ title: ' Project Complete, Payment Pending', description: 'Project marked complete but payment release failed. Please contact support.', variant: 'destructive' });
         }
       } else {
-        toast({ title: '✅ Project Complete!', description: 'Project marked as complete. Please leave a review.' });
+        toast({ title: ' Project Complete!', description: 'Project marked as complete. Please leave a review.' });
       }
       setProject(prev => prev ? { ...prev, status: 'completed' } : null);
       setShowReview(true);
@@ -262,12 +262,9 @@ export default function ProjectDetailPage() {
             {project.status === 'completed' && existingReview && (
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                    <Trophy className="w-5 h-5 text-emerald-600" />
-                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-emerald-900">Project Completed</p>
-                    <p className="text-xs text-emerald-700">You've reviewed this designer — thank you!</p>
+                    <p className="text-xs text-emerald-700">You've reviewed this designer,thank you!</p>
                   </div>
                   <div className="flex gap-0.5 flex-shrink-0">
                     {[1,2,3,4,5].map(s => (
@@ -283,12 +280,9 @@ export default function ProjectDetailPage() {
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-amber-50 border border-amber-200">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-                      <Shield className="w-5 h-5 text-amber-600" />
-                    </div>
                     <div>
                       <p className="text-sm font-semibold text-amber-900">Payment required to start</p>
-                      <p className="text-xs text-amber-700">{project.designer?.name} is ready — secure your payment to unlock the project.</p>
+                      <p className="text-xs text-amber-700">{project.designer?.name} is ready, secure your payment to unlock the project.</p>
                     </div>
                   </div>
                   <Button size="sm" className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white"
@@ -303,11 +297,8 @@ export default function ProjectDetailPage() {
             {project.status === 'in_progress' && payment?.status === 'held' && isClient && (
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
                 <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-200">
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-5 h-5 text-blue-600" />
-                  </div>
                   <p className="text-sm text-blue-800 flex-1">
-                    <strong>KSh {payment.designerAmount.toLocaleString()}</strong> held securely in escrow —
+                    <strong>KSh {payment.designerAmount.toLocaleString()}</strong> held securely in escrow,
                     released to {project.designer?.name} when you mark the project complete.
                   </p>
                   <Button size="sm" variant="outline"
@@ -327,14 +318,13 @@ export default function ProjectDetailPage() {
   <div className="rounded-2xl border border-border/60 bg-background p-4">
     <div className="grid grid-cols-2 gap-3">
       <div className="flex items-center gap-2">
-        <DollarSign className="w-4 h-4 text-primary flex-shrink-0" />
         <div>
           <p className="text-xs text-muted-foreground">Budget</p>
           <p className="text-sm font-bold text-primary">KSh {project.budget.toLocaleString()}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        
         <div>
           <p className="text-xs text-muted-foreground">Timeline</p>
           <p className="text-sm font-semibold">{project.timeline}</p>
@@ -342,7 +332,7 @@ export default function ProjectDetailPage() {
       </div>
       {project.location && (
         <div className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+
           <div>
             <p className="text-xs text-muted-foreground">Location</p>
             <p className="text-sm font-semibold truncate">{project.location}</p>
@@ -351,7 +341,7 @@ export default function ProjectDetailPage() {
       )}
       {project.createdAt && (
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+
           <div>
             <p className="text-xs text-muted-foreground">Posted</p>
             <p className="text-sm font-semibold">{formatDate(project.createdAt)}</p>
@@ -745,7 +735,7 @@ export default function ProjectDetailPage() {
                           </div>
                         )}
                         <div className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/15">
-                          <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+                         
                           <p className="text-sm text-primary font-medium">Your review helps other clients find great designers.</p>
                         </div>
                       </div>
@@ -837,20 +827,20 @@ export default function ProjectDetailPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <DollarSign className="w-3.5 h-3.5" /> Budget
+                         Budget
                       </span>
                       <span className="text-sm font-bold text-primary">KSh {project.budget.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5" /> Timeline
+                        Timeline
                       </span>
                       <span className="text-sm font-semibold">{project.timeline}</span>
                     </div>
                     {project.location && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5" /> Location
+                           Location
                         </span>
                         <span className="text-sm font-semibold">{project.location}</span>
                       </div>
@@ -858,7 +848,7 @@ export default function ProjectDetailPage() {
                     {project.createdAt && (
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5" /> Posted
+                           Posted
                         </span>
                         <span className="text-sm font-semibold">{formatDate(project.createdAt)}</span>
                       </div>
