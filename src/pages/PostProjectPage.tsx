@@ -484,23 +484,71 @@ export default function PostProjectPage() {
                   <h2 className="text-xl sm:text-2xl font-semibold">Budget & Style Preferences</h2>
 
                   <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label className="font-semibold">Your Budget</Label>
-                      <span className="font-display text-xl sm:text-2xl font-bold text-primary">{formatCurrency(budgetValue)}</span>
-                    </div>
-                   <Slider
+  <Label className="font-semibold">Your Budget</Label>
+
+                      {/* Input + formatted display row */}
+                      <div className="flex items-center gap-3">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
+                            KSh
+                          </span>
+                          <Input
+                            type="number"
+                            min={10000}
+                            max={5000000}
+                            step={1000}
+                            value={budgetValue}
+                            onChange={e => {
+                              const raw = parseInt(e.target.value.replace(/\D/g, ''), 10);
+                              if (!isNaN(raw)) setBudgetValue(Math.min(5000000, Math.max(0, raw)));
+                            }}
+                            onBlur={() => {
+                              // clamp to valid range on blur
+                              setBudgetValue(prev => Math.min(5000000, Math.max(10000, prev)));
+                            }}
+                            className="pl-12 h-12 text-base font-semibold"
+                          />
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xl font-bold text-primary leading-tight">
+                            {formatCurrency(budgetValue)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">formatted</p>
+                        </div>
+                      </div>
+
+                      <Slider
                         value={[budgetValue]}
                         onValueChange={vals => setBudgetValue(vals[0])}
-                        min={10000} max={5000000} step={5}
+                        min={10000} max={5000000} step={1000}
                         className="py-2"
                       />
-                      <div className="flex justify-between text-xs text-muted-foreground">
+
+                      {/* Range labels + quick-pick buttons */}
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
                         <span>KSh 10,000</span>
                         <span>KSh 5,000,000</span>
                       </div>
-                  
-                    {errors.budget && <p className="text-sm text-destructive">{errors.budget}</p>}
-                  </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[100000, 250000, 500000, 1000000, 2000000].map(preset => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setBudgetValue(preset)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg border text-xs font-medium transition-all',
+                              budgetValue === preset
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border bg-background hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            {formatCurrency(preset)}
+                          </button>
+                        ))}
+                      </div>
+
+                      {errors.budget && <p className="text-sm text-destructive">{errors.budget}</p>}
+                    </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-3">
