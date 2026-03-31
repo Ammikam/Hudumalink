@@ -54,7 +54,7 @@ export default function PostProjectPage() {
   const [inspirationNotes, setInspirationNotes]         = useState('');
   const [uploadingInspiration, setUploadingInspiration] = useState(false);
 
-  // ✅ stable initial value, never re-computed
+  // stable initial value, never re-computed
   const [budgetValue, setBudgetValue] = useState<number>(() => getInitialBudget(prefilled));
   const [selectedStyles, setSelectedStyles] = useState<string[]>(
     prefilled?.style ? [prefilled.style] : []
@@ -72,7 +72,7 @@ export default function PostProjectPage() {
     }
   }, [userLoaded, clerkUser]);
 
-  // ✅ stable toggle — no new function reference on every render
+  //  stable toggle — no new function reference on every render
   const toggleStyle = useCallback((style: string) => {
     setSelectedStyles(prev =>
       prev.includes(style) ? prev.filter(s => s !== style) : [...prev, style]
@@ -139,7 +139,7 @@ export default function PostProjectPage() {
       newErrors.inspirationPhotos = 'At least one inspiration photo is required';
     if (currentStep === 3) {
       if (selectedStyles.length === 0) newErrors.styles = 'Select at least one style';
-      if (budgetValue < 5) newErrors.budget = 'Budget must be at least KSh 5';
+      if (budgetValue < 10000) newErrors.budget = 'Budget must be at least KSh 10,000';
     }
     if (currentStep === 4) {
       if (!name.trim())  newErrors.name  = 'Name is required';
@@ -321,7 +321,7 @@ export default function PostProjectPage() {
                       <Label className="flex items-center gap-2 mb-1.5">
                         <Calendar className="w-4 h-4" /> Timeline *
                       </Label>
-                      {/* ✅ Button grid — no native select, works great on mobile */}
+                      {/* Button grid — no native select, works great on mobile */}
                       <div className="grid grid-cols-2 gap-2">
                         {TIMELINES.map(t => (
                           <button
@@ -489,15 +489,15 @@ export default function PostProjectPage() {
                       <span className="font-display text-xl sm:text-2xl font-bold text-primary">{formatCurrency(budgetValue)}</span>
                     </div>
                    <Slider
-  value={[budgetValue]}
-  onValueChange={vals => setBudgetValue(vals[0])}
-  min={5} max={5000000} step={5}
-  className="py-2"
-/>
-<div className="flex justify-between text-xs text-muted-foreground">
-  <span>KSh 5</span>
-  <span>KSh 5,000,000</span>
-</div>
+                        value={[budgetValue]}
+                        onValueChange={vals => setBudgetValue(vals[0])}
+                        min={10000} max={5000000} step={5}
+                        className="py-2"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>KSh 10,000</span>
+                        <span>KSh 5,000,000</span>
+                      </div>
                   
                     {errors.budget && <p className="text-sm text-destructive">{errors.budget}</p>}
                   </div>
