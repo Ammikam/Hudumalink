@@ -40,8 +40,8 @@ export default function InvitesPage() {
   const { getToken } = useAuth();
   const { toast } = useToast();
 
-  const [invites, setInvites] = useState<Invite[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [invites, setInvites]     = useState<Invite[]>([]);
+  const [loading, setLoading]     = useState(true);
   const [responding, setResponding] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function InvitesPage() {
         const token = await getToken();
         if (!token) return;
 
-        const res = await fetch('http://localhost:5000/api/invites/my', {
+        const res  = await fetch('http://localhost:5000/api/invites/my', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -69,22 +69,30 @@ export default function InvitesPage() {
     setResponding(inviteId);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:5000/api/invites/${inviteId}/accept`, {
-        method: 'PATCH',
+      const res  = await fetch(`http://localhost:5000/api/invites/${inviteId}/accept`, {
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
 
       if (res.ok) {
-        toast({ title: '✅ Invite Accepted', description: 'Redirecting to send your proposal...' });
+        // ✅ Project is now payment_pending — client needs to pay before work starts.
+        // Let the designer know and move the invite off the list.
+        toast({
+          title: 'Invite Accepted!',
+          description: 'The client has been notified to complete payment. Work starts once payment is confirmed.',
+        });
         setInvites(prev => prev.filter(i => i._id !== inviteId));
-        window.location.href = '/designer/open-projects';
+
+        // Redirect to active projects — the project will appear there
+        // once the client pays and it moves to in_progress
+        window.location.href = '/designer/active-projects';
       } else {
         throw new Error(data.error);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to accept invite:', err);
-      toast({ title: 'Error', description: 'Failed to accept invite', variant: 'destructive' });
+      toast({ title: 'Error', description: err.message || 'Failed to accept invite', variant: 'destructive' });
     } finally {
       setResponding(null);
     }
@@ -96,21 +104,21 @@ export default function InvitesPage() {
     setResponding(inviteId);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:5000/api/invites/${inviteId}/decline`, {
-        method: 'PATCH',
+      const res  = await fetch(`http://localhost:5000/api/invites/${inviteId}/decline`, {
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
 
       if (res.ok) {
-        toast({ title: 'Invite Declined', description: 'The client will be notified.' });
+        toast({ title: 'Invite Declined', description: 'The project is back open for other designers.' });
         setInvites(prev => prev.filter(i => i._id !== inviteId));
       } else {
         throw new Error(data.error);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to decline invite:', err);
-      toast({ title: 'Error', description: 'Failed to decline invite', variant: 'destructive' });
+      toast({ title: 'Error', description: err.message || 'Failed to decline invite', variant: 'destructive' });
     } finally {
       setResponding(null);
     }
@@ -133,16 +141,12 @@ export default function InvitesPage() {
 
         {/* Header */}
         <div className="mb-10">
-          <div className="flex items-center gap-3 mb-3">
-            <div>
-              <h1 className="font-display text-4xl font-bold">Project Invites</h1>
-              <p className="text-muted-foreground text-lg">
-                {invites.length > 0
-                  ? `${invites.length} client${invites.length !== 1 ? 's' : ''} invited you directly`
-                  : 'Clients who invited you directly will appear here'}
-              </p>
-            </div>
-          </div>
+          <h1 className="font-display text-4xl font-bold">Project Invites</h1>
+          <p className="text-muted-foreground text-lg mt-1">
+            {invites.length > 0
+              ? `${invites.length} client${invites.length !== 1 ? 's' : ''} invited you directly`
+              : 'Clients who invited you directly will appear here'}
+          </p>
         </div>
 
         {/* Empty State */}
@@ -157,7 +161,7 @@ export default function InvitesPage() {
               their project invites will appear here.
             </p>
             <Button asChild>
-              <Link to="/designer/active-projects">Browse Open Projects</Link>
+              <Link to="/designer/open-projects">Browse Open Projects</Link>
             </Button>
           </Card>
         ) : (
@@ -170,18 +174,15 @@ export default function InvitesPage() {
                 transition={{ delay: i * 0.06, duration: 0.35 }}
                 className="flex flex-col gap-3"
               >
-                {/* ProjectCard handles all photo logic */}
                 <ProjectCard
                   project={invite.project}
                   variant="open"
                   directInvite
-                  actionLabel={
-                    responding === invite._id ? 'Accepting...' : 'Accept & Propose'
-                  }
+                  actionLabel={responding === invite._id ? 'Accepting...' : 'Accept Invite'}
                   onAction={() => handleAccept(invite._id)}
                 />
 
-                {/* Decline button sits just below the card */}
+                {/* Decline sits below the card */}
                 <Button
                   variant="ghost"
                   size="sm"
