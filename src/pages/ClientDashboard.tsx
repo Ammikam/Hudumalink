@@ -170,7 +170,6 @@ export default function ClientDashboard() {
           description: 'Redirecting to payment...',
         });
         setSelectedProject(null);
-        // ✅ STEP 4 CHANGE: Redirect to payment page instead of just refreshing
         navigate(`/payment/${projectId}`);
       } else {
         toast({ title: 'Error', description: data.error || 'Failed to hire designer', variant: 'destructive' });
@@ -439,7 +438,7 @@ export default function ClientDashboard() {
                                 </div>
                               )}
 
-                              {/* ✅ Payment pending banner */}
+                              {/* Payment pending banner */}
                               {project.status === 'payment_pending' && (
                                 <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
                                   <p className="text-sm text-amber-800 font-medium">
@@ -545,26 +544,27 @@ export default function ClientDashboard() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-              className="bg-background rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden"
+              // FIX: increased max-h and ensured flex column fills correctly
+              className="bg-background rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden"
             >
-              {/* Modal header */}
+              {/* Modal header — fixed, never scrolls */}
               <div className="flex items-center justify-between p-5 border-b flex-shrink-0">
-                <div>
+                <div className="min-w-0 flex-1 pr-4">
                   <h2 className="font-display text-lg font-bold">Proposals</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px] sm:max-w-xs">
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     "{selectedProject.title}"
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedProject(null)}
-                  className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors flex-shrink-0"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Modal body */}
-              <div className="overflow-y-auto flex-1 p-4 sm:p-6 space-y-4">
+              {/* Modal body — this is the only scrollable region */}
+              <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
                 {!selectedProject.proposals?.length ? (
                   <div className="text-center py-16">
                     <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
@@ -623,7 +623,8 @@ export default function ClientDashboard() {
                         </div>
                       </div>
 
-                      <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap line-clamp-3">
+                      {/* FIX: removed line-clamp-3 so the full message is always visible */}
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-4 whitespace-pre-wrap">
                         {proposal.message}
                       </p>
 
@@ -633,7 +634,6 @@ export default function ClientDashboard() {
                           <Button
                             size="sm"
                             className="flex-1 gap-1.5 h-9"
-                            // ✅ STEP 4 CHANGE: Pass both proposalId and projectId
                             onClick={() => handleAcceptProposal(proposal._id, selectedProject._id)}
                             disabled={!!acceptingProposal}
                           >
