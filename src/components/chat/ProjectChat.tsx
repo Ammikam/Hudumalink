@@ -29,9 +29,14 @@ interface ProjectChatProps {
 
 let socket: Socket | null = null;
 
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const getSocket = () => {
   if (!socket) {
-    socket = io('http://localhost:5000', { autoConnect: false });
+    socket = io(SOCKET_URL, {
+      autoConnect: false,
+      transports: ['websocket', 'polling'],
+    });
   }
   return socket;
 };
@@ -49,14 +54,14 @@ export function ProjectChat({
   const [connected, setConnected] = useState(false);
   const [mongoUserId, setMongoUserId] = useState<string | null>(null);
 
-  // Fetch MongoDB _id using Clerk ID — no extra imports!
+  // Fetch MongoDB _id using Clerk ID
   useEffect(() => {
     const fetchMongoId = async () => {
       if (!clerkUserId) return;
 
       try {
         const token = await getToken();
-        const res = await fetch(`https://hudumalink-backend.onrender.com/api/projects/mongo-id/${clerkUserId}`, {
+        const res = await fetch(`${SOCKET_URL}/api/projects/mongo-id/${clerkUserId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -119,7 +124,7 @@ export function ProjectChat({
     setSending(true);
     getSocket().emit('send_message', {
       projectId,
-      senderId: mongoUserId, // ← Now using correct MongoDB _id
+      senderId: mongoUserId,
       message: newMessage.trim(),
     });
     setNewMessage('');
