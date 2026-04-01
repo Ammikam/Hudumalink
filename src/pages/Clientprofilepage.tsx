@@ -53,7 +53,7 @@ export default function ClientProfilePage() {
       // This works with ALL Clerk versions and gives you more control
       const token = await getToken();
       if (token) {
-        await fetch('http://localhost:5000/api/users/update-profile', {
+        await fetch('https://hudumalink-backend.onrender.com/api/users/update-profile', {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',

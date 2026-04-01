@@ -63,7 +63,7 @@ export default function ProposalsPage() {
       try {
         const token = await getToken();
         if (!token) return;
-        const res  = await fetch('http://localhost:5000/api/proposals/my', {
+        const res  = await fetch('https://hudumalink-backend.onrender.com/api/proposals/my', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

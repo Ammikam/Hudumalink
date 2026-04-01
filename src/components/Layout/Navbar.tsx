@@ -42,7 +42,7 @@ export function Navbar() {
 
       try {
         const token = await getToken();
-        const res = await fetch('http://localhost:5000/api/users/designer-status', {
+        const res = await fetch('https://hudumalink-backend.onrender.com/api/users/designer-status', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

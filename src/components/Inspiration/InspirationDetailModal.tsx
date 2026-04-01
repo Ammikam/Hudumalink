@@ -50,7 +50,7 @@ export function InspirationDetailModal({
   useEffect(() => {
     const fetchInspiration = async () => {
       try {
-        const res  = await fetch(`http://localhost:5000/api/inspirations/${inspirationId}`);
+        const res  = await fetch(`https://hudumalink-backend.onrender.com/api/inspirations/${inspirationId}`);
         const data = await res.json();
         if (data.success) setInspiration(data.inspiration);
       } catch (error) {

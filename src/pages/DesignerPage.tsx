@@ -62,7 +62,7 @@ export default function DesignersPage() {
       try {
         setLoading(true);
         // Public endpoint — no auth required
-        const res  = await fetch('http://localhost:5000/api/designers');
+        const res  = await fetch('https://hudumalink-backend.onrender.com/api/designers');
         const data = await res.json();
         if (data.success) setDesigners(data.designers);
         else throw new Error(data.error || 'Failed to load');

@@ -44,10 +44,10 @@ export default function ActiveProjectsPage() {
       if (!token) return;
 
       const [projectsRes, unreadRes] = await Promise.all([
-        fetch('http://localhost:5000/api/projects/my-active', {
+        fetch('https://hudumalink-backend.onrender.com/api/projects/my-active', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:5000/api/messages/unread-counts', {
+        fetch('https://hudumalink-backend.onrender.com/api/messages/unread-counts', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);

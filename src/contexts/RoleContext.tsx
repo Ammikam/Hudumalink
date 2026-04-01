@@ -52,7 +52,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const res = await fetch('http://localhost:5000/api/users/designer-status', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/users/designer-status', {
         headers: { Authorization: `Bearer ${token}` },
       });
 

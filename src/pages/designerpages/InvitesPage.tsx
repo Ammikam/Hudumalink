@@ -50,7 +50,7 @@ export default function InvitesPage() {
         const token = await getToken();
         if (!token) return;
 
-        const res  = await fetch('http://localhost:5000/api/invites/my', {
+        const res  = await fetch('https://hudumalink-backend.onrender.com/api/invites/my', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -69,7 +69,7 @@ export default function InvitesPage() {
     setResponding(inviteId);
     try {
       const token = await getToken();
-      const res  = await fetch(`http://localhost:5000/api/invites/${inviteId}/accept`, {
+      const res  = await fetch(`https://hudumalink-backend.onrender.com/api/invites/${inviteId}/accept`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
@@ -104,7 +104,7 @@ export default function InvitesPage() {
     setResponding(inviteId);
     try {
       const token = await getToken();
-      const res  = await fetch(`http://localhost:5000/api/invites/${inviteId}/decline`, {
+      const res  = await fetch(`https://hudumalink-backend.onrender.com/api/invites/${inviteId}/decline`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });

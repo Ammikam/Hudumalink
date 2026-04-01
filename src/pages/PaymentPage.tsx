@@ -83,14 +83,14 @@ export default function PaymentPage() {
       const token = await getToken();
 
       const [projectRes, proposalRes, paymentRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/projects/${projectId}`, {
+        fetch(`https://hudumalink-backend.onrender.com/api/projects/${projectId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         
-        fetch(`http://localhost:5000/api/proposals/project/${projectId}/accepted`, {
+        fetch(`https://hudumalink-backend.onrender.com/api/proposals/project/${projectId}/accepted`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`http://localhost:5000/api/payments/project/${projectId}`, {
+        fetch(`https://hudumalink-backend.onrender.com/api/payments/project/${projectId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -145,7 +145,7 @@ export default function PaymentPage() {
 
     try {
       const token = await getToken();
-      const res = await fetch('http://localhost:5000/api/payments/initiate', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -188,7 +188,7 @@ export default function PaymentPage() {
       attempts++;
       try {
         const token = await getToken();
-        const res = await fetch(`http://localhost:5000/api/payments/status/${paymentId}`, {
+        const res = await fetch(`https://hudumalink-backend.onrender.com/api/payments/status/${paymentId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

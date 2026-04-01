@@ -44,7 +44,7 @@ export default function OpenProjectsPage() {
 
         const [openProjects, proposalsRes] = await Promise.all([
           api.getOpenProjects(token),
-          fetch('http://localhost:5000/api/proposals/my', {
+          fetch('https://hudumalink-backend.onrender.com/api/proposals/my', {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -82,7 +82,7 @@ export default function OpenProjectsPage() {
     const token = await getToken();
     if (!token) throw new Error('Not authenticated');
 
-    const res = await fetch('http://localhost:5000/api/proposals', {
+    const res = await fetch('https://hudumalink-backend.onrender.com/api/proposals', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json', 

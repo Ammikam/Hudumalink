@@ -98,7 +98,7 @@ export default function PublicDesignerProfile() {
     const load = async () => {
       try {
         setLoading(true); setError(null);
-        const res = await fetch(`http://localhost:5000/api/designers/${id}`);
+        const res = await fetch(`https://hudumalink-backend.onrender.com/api/designers/${id}`);
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error(data.error || 'Failed to load');
         setDesigner(data.designer);

@@ -114,7 +114,7 @@ export default function ClientDashboard() {
         Promise.all(
           rawProjects.map(async (proj: any) => {
             try {
-              const res = await fetch(`http://localhost:5000/api/proposals/project/${proj._id}`, {
+              const res = await fetch(`https://hudumalink-backend.onrender.com/api/proposals/project/${proj._id}`, {
                 headers: { Authorization: `Bearer ${token}` },
               });
               const data = await res.json();
@@ -122,7 +122,7 @@ export default function ClientDashboard() {
             } catch { return { ...proj, proposals: [] }; }
           })
         ),
-        fetch('http://localhost:5000/api/messages/unread-counts', {
+        fetch('https://hudumalink-backend.onrender.com/api/messages/unread-counts', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -158,7 +158,7 @@ export default function ClientDashboard() {
     setAcceptingProposal(proposalId);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/accept`, {
+      const res = await fetch(`https://hudumalink-backend.onrender.com/api/proposals/${proposalId}/accept`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
@@ -185,7 +185,7 @@ export default function ClientDashboard() {
     setRejectingProposal(proposalId);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:5000/api/proposals/${proposalId}/reject`, {
+      const res = await fetch(`https://hudumalink-backend.onrender.com/api/proposals/${proposalId}/reject`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ reason: '' }),

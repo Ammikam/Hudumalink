@@ -103,8 +103,8 @@ export default function ProjectDetailPage() {
         if (!token) throw new Error('No token');
 
         const [projectRes, paymentRes] = await Promise.all([
-          fetch(`http://localhost:5000/api/projects/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`http://localhost:5000/api/payments/project/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`https://hudumalink-backend.onrender.com/api/projects/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`https://hudumalink-backend.onrender.com/api/payments/project/${id}`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         const projectData = await projectRes.json();
@@ -113,7 +113,7 @@ export default function ProjectDetailPage() {
         if (projectData.success) {
           setProject(projectData.project);
           if (projectData.project.status === 'completed') {
-            const reviewRes = await fetch(`http://localhost:5000/api/reviews/project/${id}`, {
+            const reviewRes = await fetch(`https://hudumalink-backend.onrender.com/api/reviews/project/${id}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             const reviewData = await reviewRes.json();
@@ -136,7 +136,7 @@ export default function ProjectDetailPage() {
     setCompletingProject(true);
     try {
       const token = await getToken();
-      const completeRes = await fetch(`http://localhost:5000/api/projects/${id}/complete`, {
+      const completeRes = await fetch(`https://hudumalink-backend.onrender.com/api/projects/${id}/complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
@@ -146,7 +146,7 @@ export default function ProjectDetailPage() {
         return;
       }
       if (payment?._id && payment.status === 'held') {
-        const releaseRes = await fetch(`http://localhost:5000/api/payments/release/${payment._id}`, {
+        const releaseRes = await fetch(`https://hudumalink-backend.onrender.com/api/payments/release/${payment._id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         });
@@ -174,7 +174,7 @@ export default function ProjectDetailPage() {
     setSubmittingReview(true);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:5000/api/reviews`, {
+      const res = await fetch(`https://hudumalink-backend.onrender.com/api/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ projectId: id, designerId: project?.designer?._id, rating, review: reviewText.trim() }),

@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'https://hudumalink-backend.onrender.com/api';
 
 export const api = {
   // Get all designers

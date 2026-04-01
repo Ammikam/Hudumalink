@@ -49,7 +49,7 @@ export default function InspirationPage() {
       if (!isSignedIn) return;
       try {
         const token = await getToken();
-        const res = await fetch('http://localhost:5000/api/users/designer-status', {
+        const res = await fetch('https://hudumalink-backend.onrender.com/api/users/designer-status', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -70,8 +70,8 @@ export default function InspirationPage() {
         
         // Use personalized endpoint if signed in, otherwise public
         const endpoint = token 
-          ? 'http://localhost:5000/api/inspirations/personalized'
-          : 'http://localhost:5000/api/inspirations';
+          ? 'https://hudumalink-backend.onrender.com/api/inspirations/personalized'
+          : 'https://hudumalink-backend.onrender.com/api/inspirations';
         
         const headers: any = { 'Content-Type': 'application/json' };
         if (token) headers.Authorization = `Bearer ${token}`;

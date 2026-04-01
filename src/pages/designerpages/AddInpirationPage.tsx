@@ -176,7 +176,7 @@ export default function AddInspirationPage() {
       fd.append('image', file);       // field name must match upload.single('image')
       fd.append('type', type);        // 'before' | 'after' — for server logging
 
-      const res = await fetch('http://localhost:5000/api/upload/inspiration-image', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/upload/inspiration-image', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
@@ -248,7 +248,7 @@ export default function AddInspirationPage() {
     setSubmitting(true);
     try {
       const token = await getToken();
-      const res = await fetch('http://localhost:5000/api/inspirations', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/inspirations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

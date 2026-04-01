@@ -87,7 +87,7 @@ export default function PostProjectPage() {
     files.forEach(f => formData.append('images', f));
     try {
       const token = await getToken();
-      const res = await fetch('http://localhost:5000/api/upload/project-images', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/upload/project-images', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -109,7 +109,7 @@ export default function PostProjectPage() {
     files.forEach(f => formData.append('images', f));
     try {
       const token = await getToken();
-      const res = await fetch('http://localhost:5000/api/upload/project-images', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/upload/project-images', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,

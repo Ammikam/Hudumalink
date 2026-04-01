@@ -197,7 +197,7 @@ export default function BecomeDesignerPage() {
       if (!userId || !isLoaded) return;
       try {
         const token = await getToken();
-        const res = await fetch('http://localhost:5000/api/users/designer-status', {
+        const res = await fetch('https://hudumalink-backend.onrender.com/api/users/designer-status', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -229,7 +229,7 @@ export default function BecomeDesignerPage() {
       const formDataUpload = new FormData();
       formDataUpload.append('images', file);
 
-      const res = await fetch('http://localhost:5000/api/upload/portfolio-images', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/upload/portfolio-images', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formDataUpload,
@@ -342,7 +342,7 @@ export default function BecomeDesignerPage() {
       if (formData.socialLinks.pinterest) socialLinks.pinterest = formData.socialLinks.pinterest;
       if (formData.socialLinks.website)   socialLinks.website   = formData.socialLinks.website;
 
-      const res = await fetch('http://localhost:5000/api/users/apply-designer', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/users/apply-designer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({

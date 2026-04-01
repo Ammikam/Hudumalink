@@ -36,7 +36,7 @@ export function InspirationTeaser() {
   useEffect(() => {
     const fetchInspiration = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/inspirations?limit=12');
+        const res = await fetch('https://hudumalink-backend.onrender.com/api/inspirations?limit=12');
         const data = await res.json();
 
         if (data.success && data.inspirations) {

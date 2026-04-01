@@ -508,7 +508,7 @@ function AvatarModal({ current, onSave, onClose }: { current: string; onSave: (u
       const fd = new FormData();
       fd.append('avatar', optimizedBlob, 'avatar.jpg');
       
-      const res = await fetch('http://localhost:5000/api/users/upload-avatar', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/users/upload-avatar', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: fd
@@ -643,7 +643,7 @@ function CoverModal({ current, onSave, onClose }: { current: string; onSave: (ur
       const fd = new FormData();
       fd.append('cover', optimizedBlob, 'cover.jpg');
       
-      const res = await fetch('http://localhost:5000/api/users/upload-cover', {
+      const res = await fetch('https://hudumalink-backend.onrender.com/api/users/upload-cover', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: fd
@@ -772,11 +772,11 @@ export default function DesignerProfilePage() {
         setLoading(true); setError(null);
         const token = await getToken();
         if (!token) throw new Error('No auth token');
-        const mr = await fetch(`http://localhost:5000/api/users/mongo-id/${user.id}`, { headers:{ Authorization:`Bearer ${token}` } });
+        const mr = await fetch(`https://hudumalink-backend.onrender.com/api/users/mongo-id/${user.id}`, { headers:{ Authorization:`Bearer ${token}` } });
         if (!mr.ok) throw new Error(`Mongo ID failed (${mr.status})`);
         const md = await mr.json();
         if (!md.success || !md.mongoId) throw new Error('No MongoDB ID');
-        const pr = await fetch(`http://localhost:5000/api/designers/${md.mongoId}`, { headers:{ Authorization:`Bearer ${token}` } });
+        const pr = await fetch(`https://hudumalink-backend.onrender.com/api/designers/${md.mongoId}`, { headers:{ Authorization:`Bearer ${token}` } });
         if (!pr.ok) throw new Error(`Profile fetch failed (${pr.status})`);
         const pd = await pr.json();
         if (!pd.success || !pd.designer) throw new Error(pd.error || 'Not found');
@@ -805,7 +805,7 @@ export default function DesignerProfilePage() {
     if (!designer) return;
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:5000/api/designers/${designer._id}`, {
+      const res = await fetch(`https://hudumalink-backend.onrender.com/api/designers/${designer._id}`, {
         method: 'PATCH',
         headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
         body: JSON.stringify({ [field]: value }),

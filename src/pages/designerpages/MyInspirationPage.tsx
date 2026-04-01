@@ -49,14 +49,14 @@ export default function MyInspirationsPage() {
     try {
       const token = await getToken();
       // Uses the /designer/:designerId route — get own user ID first
-      const profileRes  = await fetch('http://localhost:5000/api/users/profile', {
+      const profileRes  = await fetch('https://hudumalink-backend.onrender.com/api/users/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const profileData = await profileRes.json();
       if (!profileData.success) return;
 
       const res  = await fetch(
-        `http://localhost:5000/api/inspirations/designer/${profileData.user._id}`,
+        `https://hudumalink-backend.onrender.com/api/inspirations/designer/${profileData.user._id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();

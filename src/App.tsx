@@ -36,7 +36,7 @@ import SuspendedPage from "./pages/SuspendedPage";
 
 
 const queryClient = new QueryClient();
-const publishableKey = "pk_test_aW5maW5pdGUtZ2liYm9uLTcwLmNsZXJrLmFjY291bnRzLmRldiQ";
+const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const App = () => (
   <ClerkProvider publishableKey={publishableKey}>

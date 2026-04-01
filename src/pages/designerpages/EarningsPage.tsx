@@ -75,7 +75,7 @@ export default function EarningsPage() {
   const fetchProfile = async () => {
     try {
       const token = await getToken();
-      const res   = await fetch('http://localhost:5000/api/users/profile', {
+      const res   = await fetch('https://hudumalink-backend.onrender.com/api/users/profile', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data  = await res.json();
@@ -90,7 +90,7 @@ export default function EarningsPage() {
   const fetchPayments = async () => {
     try {
       const token = await getToken();
-      const res   = await fetch('http://localhost:5000/api/payments/my-payments?role=designer', {
+      const res   = await fetch('https://hudumalink-backend.onrender.com/api/payments/my-payments?role=designer', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data  = await res.json();
@@ -110,7 +110,7 @@ export default function EarningsPage() {
     setSavingPhone(true);
     try {
       const token = await getToken();
-      const res   = await fetch('http://localhost:5000/api/users/update-profile', {
+      const res   = await fetch('https://hudumalink-backend.onrender.com/api/users/update-profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ phone: newPhone.trim() }),
