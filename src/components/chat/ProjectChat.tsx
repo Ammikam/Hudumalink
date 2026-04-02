@@ -29,7 +29,9 @@ interface ProjectChatProps {
 
 let socket: Socket | null = null;
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SOCKET_URL = BASE_URL; // socket connects to base, no /api
+const API_URL = `${BASE_URL}/api`; // HTTP requests need /api
 
 const getSocket = () => {
   if (!socket) {
@@ -61,9 +63,9 @@ export function ProjectChat({
 
       try {
         const token = await getToken();
-        const res = await fetch(`${SOCKET_URL}/api/projects/mongo-id/${clerkUserId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+       const res = await fetch(`${API_URL}/projects/mongo-id/${clerkUserId}`, {
+       headers: { Authorization: `Bearer ${token}` },
+       });
         const data = await res.json();
 
         if (data.success && data.mongoId) {
